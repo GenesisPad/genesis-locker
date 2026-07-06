@@ -12,8 +12,22 @@
  */
 
 import { mainnet, base, bsc, hardhat } from 'viem/chains'
+import { defineChain } from 'viem'
 import type { Chain } from 'viem'
 import type { ChainInfo } from './api'
+
+// Robinhood Chain isn't in viem/chains yet, so it's defined here directly.
+export const robinhood = defineChain({
+  id: 4663,
+  name: 'Robinhood Chain',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc.mainnet.chain.robinhood.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'Robinhood Explorer', url: 'https://robinhoodchain.blockscout.com' },
+  },
+})
 
 // ── Static chain registry ──────────────────────────────────────────────────
 
@@ -34,6 +48,16 @@ export type ChainConfig = {
 }
 
 export const CHAIN_CONFIGS: ChainConfig[] = [
+  {
+    id: 4663,
+    name: 'Robinhood Chain',
+    symbol: 'ETH',
+    dotColor: '#d9ad4a',
+    feeLabel: '0.01 ETH',
+    geckoTerminalId: null,
+    explorerUrl: 'https://robinhoodchain.blockscout.com',
+    wagmiChain: robinhood,
+  },
   {
     id: 1,
     name: 'Ethereum',
@@ -91,6 +115,7 @@ export function getChainById(id: number): ChainConfig | undefined {
  * "Ethereum", etc.).
  */
 const NAME_ALIASES: Record<string, number> = {
+  robinhood: 4663, 'robinhood chain': 4663,
   eth: 1, ethereum: 1,
   base: 8453,
   bnb: 56, bsc: 56, 'bnb chain': 56,

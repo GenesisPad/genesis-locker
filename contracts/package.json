@@ -9,6 +9,7 @@
   "scripts": {
     "build": "hardhat compile",
     "test": "hardhat test",
+    "deploy:robinhood": "hardhat run scripts/deploy.ts --network robinhood",
     "deploy:ethereum": "hardhat run scripts/deploy.ts --network ethereum",
     "deploy:base": "hardhat run scripts/deploy.ts --network base",
     "deploy:bsc": "hardhat run scripts/deploy.ts --network bsc",

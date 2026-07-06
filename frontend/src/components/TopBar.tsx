@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Globe, ChevronDown, Menu } from 'lucide-react'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 
-const chains = ['All Chains', 'Ethereum', 'Base', 'BNB Chain']
+const chains = ['All Chains', 'Robinhood Chain', 'Ethereum', 'Base', 'BNB Chain']
 
 export function TopBar({ onOpenMenu }: { onOpenMenu?: () => void }) {
   const [selected, setSelected] = useState('All Chains')

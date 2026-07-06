@@ -15,6 +15,11 @@ const config: HardhatUserConfig = {
     }
   },
   networks: {
+    robinhood: {
+      url: process.env.ROBINHOOD_RPC_URL || "https://rpc.mainnet.chain.robinhood.com",
+      chainId: 4663,
+      accounts
+    },
     ethereum: {
       url: process.env.ETHEREUM_RPC_URL || "",
       chainId: 1,

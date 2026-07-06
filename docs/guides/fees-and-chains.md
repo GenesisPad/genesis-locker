@@ -4,6 +4,7 @@ Genesis Locker deploys a separate locker contract per chain with configurable cr
 
 | Chain | Fee |
 | --- | --- |
+| Robinhood Chain (primary) | 0.01 ETH |
 | Ethereum | 0.01 ETH |
 | Base | 0.01 ETH |
 | BSC | 0.03 BNB |

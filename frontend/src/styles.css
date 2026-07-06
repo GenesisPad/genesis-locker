@@ -639,6 +639,17 @@ img, video, canvas, svg { max-width: 100%; }
   animation-delay: 2.4s;
 }
 
+.chain-robinhood {
+  width: 58px;
+  height: 58px;
+  bottom: 18px;
+  left: 38px;
+  background: #201a08;
+  border: 1px solid rgba(217, 173, 74, 0.45);
+  box-shadow: 0 0 22px rgba(217, 173, 74, 0.3);
+  animation-delay: 0.6s;
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-10px); }
@@ -876,6 +887,7 @@ img, video, canvas, svg { max-width: 100%; }
   border-radius: 50%;
 }
 
+.net-dot.robinhood { background: #d9ad4a; }
 .net-dot.eth { background: #8a97a8; }
 .net-dot.base { background: #0052ff; }
 .net-dot.bnb { background: #f3ba2f; }

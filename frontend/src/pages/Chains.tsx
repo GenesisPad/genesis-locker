@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { api, ChainInfo, formatUsd } from '../lib/api'
 
 const CHAIN_STYLE: Record<number, { tag: string; color: string; bg: string; desc: string; fee: string }> = {
+  4663: { tag: 'RH', color: '#d9ad4a', bg: '#201a08', desc: "Genesis Locker's primary chain — Robinhood Chain, home of the GenesisPad ecosystem.", fee: '0.01 ETH' },
   1: { tag: 'ETH', color: '#627EEA', bg: '#0d1240', desc: 'The original smart contract platform. Maximum security and decentralization.', fee: '0.01 ETH' },
   8453: { tag: 'BASE', color: '#0052FF', bg: '#000d24', desc: 'Coinbase L2 built on the OP Stack. Low fees, Ethereum security.', fee: '0.01 ETH' },
   56: { tag: 'BNB', color: '#F3BA2F', bg: '#1a1300', desc: 'High-throughput EVM chain with low fees and large DeFi ecosystem.', fee: '0.03 BNB' },
@@ -21,7 +22,7 @@ export function Chains() {
     <div className="chains-page">
       <motion.div className="page-heading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
         <h1 className="page-title">Supported Chains</h1>
-        <p className="page-desc">Genesis Locker operates across three EVM-compatible chains with unified contract standards.</p>
+        <p className="page-desc">Genesis Locker operates across four EVM-compatible chains with unified contract standards, led by Robinhood Chain.</p>
       </motion.div>
 
       <div className="chains-grid">

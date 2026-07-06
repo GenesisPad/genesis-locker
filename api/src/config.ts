@@ -2,6 +2,13 @@ import "dotenv/config";
 
 const configuredChains = [
   {
+    id: 4663, name: "Robinhood Chain", symbol: "ETH",
+    rpcEnvKey: "ROBINHOOD_RPC_URL", rpcUrl: process.env.ROBINHOOD_RPC_URL,
+    lockerAddress: process.env.ROBINHOOD_LOCKER_ADDRESS,
+    fee: "0.01", explorerUrl: "https://robinhoodchain.blockscout.com",
+    dotColor: "#d9ad4a", geckoTerminalId: null, feeLabel: "0.01 ETH",
+  },
+  {
     id: 1, name: "Ethereum", symbol: "ETH",
     rpcEnvKey: "ETHEREUM_RPC_URL", rpcUrl: process.env.ETHEREUM_RPC_URL,
     lockerAddress: process.env.ETHEREUM_LOCKER_ADDRESS,

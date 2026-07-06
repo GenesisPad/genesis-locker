@@ -1,6 +1,6 @@
 # Genesis Locker Documentation
 
-Genesis Locker is an open-source multi-chain liquidity and token locker for Ethereum, Base, and BSC.
+Genesis Locker is an open-source multi-chain liquidity and token locker, built primarily for Robinhood Chain, with support for Ethereum, Base, and BSC.
 
 Genesis Locker does not guarantee that a project is safe. It proves whether LP tokens or normal ERC20/BEP20 tokens are locked, how much is locked, how long they are locked, whether withdrawal rights were permanently renounced, and whether supported risk signals were detected.
 

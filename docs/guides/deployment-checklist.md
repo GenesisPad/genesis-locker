@@ -2,9 +2,10 @@
 
 ## Contracts
 
-1. Set `DEPLOYER_PRIVATE_KEY`, `ETHEREUM_RPC_URL`, `BASE_RPC_URL`, and `BSC_RPC_URL`.
+1. Set `DEPLOYER_PRIVATE_KEY`, `ROBINHOOD_RPC_URL`, `ETHEREUM_RPC_URL`, `BASE_RPC_URL`, and `BSC_RPC_URL`.
 2. Run `npm test`.
 3. Deploy per chain:
+   - `npm run deploy:robinhood` (primary chain)
    - `npm run deploy:ethereum`
    - `npm run deploy:base`
    - `npm run deploy:bsc`

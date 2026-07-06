@@ -74,7 +74,7 @@ export function SearchPage() {
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 28 }}>
         <span style={{ fontSize: 11, color: 'var(--dim)', marginRight: 4 }}>Quick filter:</span>
-        {['Ethereum', 'Base', 'BNB Chain', 'LP Pairs', 'Tokens', 'Permanent Only'].map(tag => (
+        {['Robinhood Chain', 'Ethereum', 'Base', 'BNB Chain', 'LP Pairs', 'Tokens', 'Permanent Only'].map(tag => (
           <button key={tag} className="filter-btn" style={{ fontSize: 11, padding: '5px 10px' }}>
             {tag}
           </button>

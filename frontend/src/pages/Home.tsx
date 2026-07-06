@@ -191,6 +191,14 @@ function BaseIcon() {
   )
 }
 
+function RobinhoodIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M16 3C9 8 6 12 6 17.5C6 21 8.2 23 11 23C13.2 23 15 21.4 15 19C15 16.6 13.2 15.5 11.5 15.5C13 12.5 15 9.5 16 8C17 9.5 19 12.5 20.5 15.5C18.8 15.5 17 16.6 17 19C17 21.4 18.8 23 21 23C23.8 23 26 21 26 17.5C26 12 23 8 16 3Z" fill="#d9ad4a" />
+    </svg>
+  )
+}
+
 /* ---------- Count-up hook ---------- */
 function useCountUp(target: string, duration = 1200) {
   const [display, setDisplay] = useState('0')
@@ -262,6 +270,7 @@ export function Home() {
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
           <div className="hero-eyebrow">
+            Robinhood Chain <span className="eyebrow-sep" />
             Ethereum <span className="eyebrow-sep" />
             Base <span className="eyebrow-sep" />
             BNB Chain
@@ -273,7 +282,8 @@ export function Home() {
           </h1>
           <p className="hero-sub">
             Genesis Locker is a decentralized liquidity and token locker
-            for Ethereum, Base and BNB Chain — 100% on-chain transparency.
+            built primarily for Robinhood Chain, with support for Ethereum,
+            Base and BNB Chain — 100% on-chain transparency.
           </p>
           <div className="hero-actions">
             <button className="btn-primary" onClick={() => navigate('/create')}>
@@ -297,6 +307,9 @@ export function Home() {
           <div className="lock-platform" />
           <div className="lock-center">
             <LockSVG />
+          </div>
+          <div className="chain-float chain-robinhood">
+            <RobinhoodIcon />
           </div>
           <div className="chain-float chain-eth">
             <EthIcon />
@@ -345,6 +358,10 @@ export function Home() {
       {/* Networks */}
       <div className="networks-row">
         <span className="networks-label">Supported Networks</span>
+        <div className="net-pill">
+          <span className="net-dot robinhood" />
+          Robinhood Chain
+        </div>
         <div className="net-pill">
           <span className="net-dot eth" />
           Ethereum
