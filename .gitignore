@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+artifacts/
+cache/
+typechain-types/
+
+# Environment files
+.env
+
+# Logs
+*.log
+
+# Local dev / personal config — must NOT be pushed to the public repo
+.mcp.json
+.claude/

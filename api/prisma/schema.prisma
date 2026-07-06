@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AssetType {
+  TOKEN
+  LP
+}
+
+enum LockType {
+  CLIFF
+  VESTING
+  PERMANENT
+}
+
+model Chain {
+  id              Int      @id
+  name            String
+  symbol          String
+  rpcEnvKey       String
+  explorerUrl     String?
+  dotColor        String?
+  geckoTerminalId String?
+  feeLabel        String?
+  createdAt       DateTime @default(now())
+  contracts Contract[]
+  locks     Lock[]
+  tokens    Token[]
+  pairs     Pair[]
+  dailyStats DailyStat[]
+  feeStats  FeeStat[]
+  indexCursors IndexCursor[]
+}
+
+model Contract {
+  id          String   @id @default(cuid())
+  chainId     Int
+  address     String
+  isRenounced Boolean  @default(false)
+  creationFee String?
+  ownerAddress String?
+  deployedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  chain       Chain    @relation(fields: [chainId], references: [id])
+
+  @@unique([chainId, address])
+}
+
+model Token {
+  id             String   @id @default(cuid())
+  chainId        Int
+  address        String
+  name           String?
+  symbol         String?
+  decimals       Int?
+  totalSupply    String?
+  priceUsd       Decimal? @db.Decimal(30, 12)
+  hasMintRisk    Boolean  @default(false)
+  hasHighTaxRisk Boolean  @default(false)
+  hasBlacklistRisk Boolean @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  chain          Chain    @relation(fields: [chainId], references: [id])
+  locks          Lock[]
+
+  @@unique([chainId, address])
+}
+
+model Pair {
+  id          String   @id @default(cuid())
+  chainId     Int
+  address     String
+  token0      String?
+  token1      String?
+  dex         String?
+  totalSupply String?
+  reserveUsd  Decimal? @db.Decimal(30, 8)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  chain       Chain    @relation(fields: [chainId], references: [id])
+
+  @@unique([chainId, address])
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  address   String   @unique
+  createdAt DateTime @default(now())
+  locks     Lock[]
+}
+
+model Lock {
+  id                String    @id @default(cuid())
+  chainId           Int
+  lockId            BigInt
+  contractAddress   String
+  assetAddress      String
+  assetType         AssetType
+  lockType          LockType
+  ownerAddress      String
+  beneficiaryAddress String
+  amount            String
+  withdrawnAmount   String    @default("0")
+  startTime         DateTime
+  cliffTime         DateTime?
+  endTime           DateTime?
+  vestingInterval   Int?
+  isPermanent       Boolean   @default(false)
+  metadataURI       String?
+  tvlUsd            Decimal?  @db.Decimal(30, 8)
+  lockedPercentage  Decimal?  @db.Decimal(8, 3)
+  createdTxHash     String?
+  createdBlockNumber BigInt?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  chain             Chain     @relation(fields: [chainId], references: [id])
+  token             Token?    @relation(fields: [chainId, assetAddress], references: [chainId, address])
+  wallet            Wallet?   @relation(fields: [ownerAddress], references: [address])
+  events            LockEvent[]
+
+  @@unique([chainId, lockId])
+  @@index([chainId, assetAddress])
+  @@index([chainId, ownerAddress])
+}
+
+model LockEvent {
+  id          String   @id @default(cuid())
+  chainId     Int
+  lockDbId    String?
+  lockId      BigInt?
+  eventName   String
+  txHash      String
+  blockNumber BigInt
+  logIndex    Int
+  payload     Json
+  createdAt   DateTime @default(now())
+  lock        Lock?    @relation(fields: [lockDbId], references: [id])
+
+  @@unique([chainId, txHash, logIndex])
+  @@index([chainId, lockId])
+}
+
+model IndexCursor {
+  id          String   @id @default(cuid())
+  chainId     Int
+  contractAddress String
+  lastBlock   BigInt
+  updatedAt   DateTime @updatedAt
+  chain       Chain    @relation(fields: [chainId], references: [id])
+
+  @@unique([chainId, contractAddress])
+}
+
+model DailyStat {
+  id                  String   @id @default(cuid())
+  chainId             Int
+  date                DateTime
+  totalLocks          Int
+  totalActiveLocks    Int
+  totalPermanentLocks Int
+  tvlUsd              Decimal  @db.Decimal(30, 8)
+  lpTvlUsd            Decimal  @db.Decimal(30, 8)
+  tokenTvlUsd         Decimal  @db.Decimal(30, 8)
+  chain               Chain    @relation(fields: [chainId], references: [id])
+
+  @@unique([chainId, date])
+}
+
+model FeeStat {
+  id        String   @id @default(cuid())
+  chainId   Int
+  date      DateTime
+  amount    String
+  amountUsd Decimal? @db.Decimal(30, 8)
+  chain     Chain    @relation(fields: [chainId], references: [id])
+
+  @@unique([chainId, date])
+}

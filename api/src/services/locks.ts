@@ -1,0 +1,254 @@
+import { AssetType, Lock, LockType } from "@prisma/client";
+import { db } from "../db.js";
+import { chains, lowLockPercentageThreshold, shortLockDays } from "../config.js";
+
+type LockWithRelations = Lock & {
+  token: {
+    name: string | null;
+    symbol: string | null;
+    decimals: number | null;
+    totalSupply: string | null;
+    hasMintRisk: boolean;
+    hasHighTaxRisk: boolean;
+    hasBlacklistRisk: boolean;
+  } | null;
+  events: Array<{
+    eventName: string;
+    txHash: string;
+    blockNumber: bigint;
+    logIndex: number;
+    payload: unknown;
+    createdAt: Date;
+  }>;
+};
+
+function dateToIso(date?: Date | null) {
+  return date ? date.toISOString().slice(0, 10) : null;
+}
+
+function txUrl(explorerUrl: string | null | undefined, txHash: string) {
+  return explorerUrl ? `${explorerUrl}/tx/${txHash}` : null;
+}
+
+function remainingAmount(lock: Pick<Lock, "amount" | "withdrawnAmount">) {
+  return BigInt(lock.amount) - BigInt(lock.withdrawnAmount);
+}
+
+function claimableAmount(lock: Pick<Lock, "amount" | "withdrawnAmount" | "isPermanent" | "lockType" | "cliffTime" | "endTime" | "startTime" | "vestingInterval">, now = new Date()) {
+  if (lock.isPermanent || (lock.cliffTime && now < lock.cliffTime)) return 0n;
+  const remaining = remainingAmount(lock);
+  if (lock.lockType !== LockType.VESTING || !lock.endTime || !lock.vestingInterval) return remaining;
+  if (now >= lock.endTime) return remaining;
+
+  const elapsed = BigInt(Math.max(0, Math.floor((now.getTime() - lock.startTime.getTime()) / 1000)));
+  const duration = BigInt(Math.max(1, Math.floor((lock.endTime.getTime() - lock.startTime.getTime()) / 1000)));
+  const interval = BigInt(lock.vestingInterval);
+  const vestedSeconds = (elapsed / interval) * interval;
+  const vestedAmount = (BigInt(lock.amount) * vestedSeconds) / duration;
+  const withdrawn = BigInt(lock.withdrawnAmount);
+  return vestedAmount > withdrawn ? vestedAmount - withdrawn : 0n;
+}
+
+function buildWarnings(lock: LockWithRelations, contractRenounced: boolean) {
+  const warnings: string[] = [];
+  if (lock.endTime && lock.createdAt) {
+    const durationDays = (lock.endTime.getTime() - lock.startTime.getTime()) / (1000 * 60 * 60 * 24);
+    if (durationDays < shortLockDays) warnings.push("Short Lock");
+  }
+  const lockedPercentage = lock.lockedPercentage ? Number(lock.lockedPercentage) : undefined;
+  if (lockedPercentage !== undefined && lockedPercentage < lowLockPercentageThreshold) warnings.push("Low Lock Percentage");
+  if (!contractRenounced) warnings.push("Contract Ownership Not Renounced");
+  if (lock.token?.hasMintRisk) warnings.push("Mint Risk");
+  if (lock.token?.hasHighTaxRisk) warnings.push("High Tax Risk");
+  if (lock.token?.hasBlacklistRisk) warnings.push("Blacklist Risk");
+  return warnings;
+}
+
+function badgesFor(lock: LockWithRelations) {
+  const badges = [lock.assetType === AssetType.LP ? "LP Locked" : "Token Locked"];
+  badges.push(lock.lockType === LockType.VESTING ? "Vesting Lock" : "Cliff Lock");
+  if (lock.isPermanent) badges.push("Permanently Locked");
+  return badges;
+}
+
+function serializeLock(lock: LockWithRelations, explorerUrl?: string | null) {
+  const claimable = claimableAmount(lock);
+  return {
+    lockId: lock.lockId.toString(),
+    chainId: lock.chainId,
+    contractAddress: lock.contractAddress,
+    assetAddress: lock.assetAddress,
+    assetType: lock.assetType.toLowerCase(),
+    lockType: lock.isPermanent ? "permanent" : lock.lockType.toLowerCase(),
+    owner: lock.ownerAddress,
+    beneficiary: lock.beneficiaryAddress,
+    amount: lock.amount,
+    withdrawnAmount: lock.withdrawnAmount,
+    remainingLockedAmount: remainingAmount(lock).toString(),
+    claimableAmount: claimable.toString(),
+    startDate: lock.startTime.toISOString(),
+    cliffDate: lock.cliffTime?.toISOString() ?? null,
+    unlockDate: lock.isPermanent ? null : lock.endTime?.toISOString() ?? null,
+    vestingInterval: lock.vestingInterval,
+    isPermanent: lock.isPermanent,
+    metadataURI: lock.metadataURI,
+    lockedPercentage: lock.lockedPercentage?.toString() ?? null,
+    tvlUsd: lock.tvlUsd?.toString() ?? null,
+    token: lock.token,
+    badges: badgesFor(lock),
+    createdTxHash: lock.createdTxHash,
+    createdTxUrl: lock.createdTxHash ? txUrl(explorerUrl, lock.createdTxHash) : null,
+    events: lock.events.map((event) => ({
+      eventName: event.eventName,
+      txHash: event.txHash,
+      txUrl: txUrl(explorerUrl, event.txHash),
+      blockNumber: event.blockNumber.toString(),
+      logIndex: event.logIndex,
+      payload: event.payload,
+      createdAt: event.createdAt.toISOString()
+    }))
+  };
+}
+
+export async function getChains() {
+  const stored = await db.chain.findMany({ include: { contracts: true }, orderBy: { id: "asc" } });
+  if (stored.length === 0) {
+    return chains.map((c) => ({
+      id: c.id,
+      name: c.name,
+      symbol: c.symbol,
+      explorerUrl: c.explorerUrl,
+      dotColor: c.dotColor,
+      geckoTerminalId: c.geckoTerminalId ?? null,
+      feeLabel: c.feeLabel,
+      contracts: c.lockerAddress ? [{ address: c.lockerAddress.toLowerCase(), isRenounced: false, ownerAddress: null, creationFee: c.fee }] : []
+    }));
+  }
+
+  return stored.map((chain) => ({
+    id: chain.id,
+    name: chain.name,
+    symbol: chain.symbol,
+    explorerUrl: chain.explorerUrl,
+    dotColor: chain.dotColor,
+    geckoTerminalId: chain.geckoTerminalId,
+    feeLabel: chain.feeLabel,
+    contracts: chain.contracts.map((contract) => ({
+      address: contract.address,
+      isRenounced: contract.isRenounced,
+      ownerAddress: contract.ownerAddress,
+      creationFee: contract.creationFee
+    }))
+  }));
+}
+
+export async function getGlobalStats() {
+  const [locks, feeStats] = await Promise.all([db.lock.findMany(), db.feeStat.findMany()]);
+  const chainRows = await getChains();
+  const byChain = chainRows.map((chain) => {
+    const chainLocks = locks.filter((lock) => lock.chainId === chain.id);
+    const chainFees = feeStats.filter((fee) => fee.chainId === chain.id).reduce((sum, fee) => sum + BigInt(fee.amount), 0n);
+    return {
+      chainId: chain.id,
+      name: chain.name,
+      totalLocks: chainLocks.length,
+      totalActiveLocks: chainLocks.filter((lock) => remainingAmount(lock) > 0n && !lock.isPermanent).length,
+      totalPermanentLocks: chainLocks.filter((lock) => lock.isPermanent).length,
+      totalTvl: chainLocks.reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
+      totalFeesCollected: chainFees.toString()
+    };
+  });
+
+  return {
+    totalLocks: locks.length,
+    totalActiveLocks: locks.filter((lock) => remainingAmount(lock) > 0n && !lock.isPermanent).length,
+    totalPermanentLocks: locks.filter((lock) => lock.isPermanent).length,
+    totalTvl: locks.reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
+    totalLpTvl: locks.filter((lock) => lock.assetType === AssetType.LP).reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
+    totalTokenTvl: locks.filter((lock) => lock.assetType === AssetType.TOKEN).reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
+    totalFeesCollected: feeStats.reduce((sum, fee) => sum + BigInt(fee.amount), 0n).toString(),
+    byChain
+  };
+}
+
+export async function getAssetStatus(chainId: number, assetAddress?: string, lockId?: bigint) {
+  const [locks, chain, contract] = await Promise.all([
+    db.lock.findMany({
+    where: lockId ? { chainId, lockId } : { chainId, assetAddress: assetAddress?.toLowerCase() },
+      include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
+      orderBy: [{ isPermanent: "desc" }, { endTime: "desc" }]
+    }) as Promise<LockWithRelations[]>,
+    db.chain.findUnique({ where: { id: chainId } }),
+    db.contract.findFirst({ where: { chainId } })
+  ]);
+
+  const first = locks[0];
+  const contractRenounced = contract?.isRenounced ?? false;
+  return {
+    chainId,
+    chain: chain?.name ?? chains.find((chain) => chain.id === chainId)?.name ?? null,
+    assetAddress: assetAddress || first?.assetAddress,
+    assetType: first?.assetType?.toLowerCase() || null,
+    isLocked: locks.length > 0,
+    hasPermanentLock: locks.some((lock) => lock.isPermanent),
+    totalLockedAmount: locks.reduce((sum, lock) => sum + remainingAmount(lock), 0n).toString(),
+    lockedPercentage: first?.lockedPercentage?.toString() || null,
+    longestUnlockDate: dateToIso(first?.endTime),
+    warnings: [...new Set(locks.flatMap((lock) => buildWarnings(lock, contractRenounced)))],
+    badges: [...new Set(locks.flatMap((lock) => badgesFor(lock)))],
+    contract: contract ? {
+      address: contract.address,
+      isRenounced: contract.isRenounced,
+      ownerAddress: contract.ownerAddress
+    } : null,
+    locks: locks.map((lock) => serializeLock(lock, chain?.explorerUrl))
+  };
+}
+
+export async function listLocks(limit = 50) {
+  const chainsById = new Map((await db.chain.findMany()).map((chain) => [chain.id, chain]));
+  const locks = await db.lock.findMany({
+    include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
+    orderBy: { createdAt: "desc" },
+    take: Math.min(Math.max(limit, 1), 100)
+  }) as LockWithRelations[];
+
+  return {
+    locks: locks.map((lock) => serializeLock(lock, chainsById.get(lock.chainId)?.explorerUrl))
+  };
+}
+
+export async function getWalletLocks(chainId: number, walletAddress: string) {
+  const chain = await db.chain.findUnique({ where: { id: chainId } });
+  const locks = await db.lock.findMany({
+    where: { chainId, ownerAddress: walletAddress.toLowerCase() },
+    include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
+    orderBy: { createdAt: "desc" }
+  }) as LockWithRelations[];
+  return { chainId, walletAddress, locks: locks.map((lock) => serializeLock(lock, chain?.explorerUrl)) };
+}
+
+export async function search(query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return { query, results: [] };
+
+  const [tokens, pairs, locks] = await Promise.all([
+    db.token.findMany({ where: { OR: [{ address: q }, { symbol: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }] }, take: 20 }),
+    db.pair.findMany({ where: { address: q }, take: 20 }),
+    db.lock.findMany({ where: { OR: [{ assetAddress: q }, { ownerAddress: q }, { beneficiaryAddress: q }] }, take: 20 })
+  ]);
+
+  return {
+    query,
+    results: [
+      ...tokens.map((token) => ({ type: "token", chainId: token.chainId, address: token.address, name: token.name, symbol: token.symbol, totalSupply: token.totalSupply })),
+      ...pairs.map((pair) => ({ type: "pair", chainId: pair.chainId, address: pair.address, token0: pair.token0, token1: pair.token1, reserveUsd: pair.reserveUsd?.toString() ?? null })),
+      ...locks.map((lock) => ({ type: "lock", chainId: lock.chainId, lockId: lock.lockId.toString(), assetAddress: lock.assetAddress, isPermanent: lock.isPermanent, lockedPercentage: lock.lockedPercentage?.toString() ?? null }))
+    ]
+  };
+}
+
+export const lockMath = {
+  claimableAmount,
+  remainingAmount
+};
