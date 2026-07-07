@@ -9,6 +9,7 @@ import { RiskBadge, RISK_BADGES } from '../components/RiskBadge'
 import { motion } from 'framer-motion'
 import { api, formatUsd, formatAmount, formatDate, type ApiLock, type GlobalStats } from '../lib/api'
 import { getChainById } from '../lib/chains'
+import { parseMetadataURI } from '../lib/metadata'
 
 /* ---------- Real-data helpers ---------- */
 
@@ -39,6 +40,23 @@ function lockStatus(lock: ApiLock): 'permanent' | 'active' | 'withdrawn' {
 function daysUntil(iso: string | null) {
   if (!iso) return null
   return Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+}
+
+function lockLogo(lock: ApiLock) {
+  return parseMetadataURI(lock.metadataURI)?.logo || null
+}
+
+/** Renders a token's uploaded logo when present, falling back to the letter avatar. */
+function AssetAvatar({ lock, className, style }: { lock: ApiLock; className?: string; style?: React.CSSProperties }) {
+  const logo = lockLogo(lock)
+  if (logo) {
+    return <img src={logo} alt="" className={className} style={{ ...style, objectFit: 'cover' }} />
+  }
+  return (
+    <div className={className} style={style}>
+      {assetLabel(lock).slice(0, 2)}
+    </div>
+  )
 }
 
 /* ---------- Sub-components ---------- */
@@ -369,9 +387,7 @@ export function Home() {
                     <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)}>
                       <td>
                         <div className="asset-cell">
-                          <div className="asset-avatar" style={{ background: '#242018', color: '#f1cb73' }}>
-                            {assetLabel(lock).slice(0, 2)}
-                          </div>
+                          <AssetAvatar lock={lock} className="asset-avatar" style={{ background: '#242018', color: '#f1cb73' }} />
                           <div>
                             <div className="asset-name">{assetLabel(lock)}</div>
                             <div className="asset-dex">{chainName}</div>
@@ -436,9 +452,7 @@ export function Home() {
           )}
           {highestValueLocks.map(lock => (
             <div className="trending-item" key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)} style={{ cursor: 'pointer' }}>
-              <div className="t-avatar" style={{ background: '#242018', color: '#f1cb73' }}>
-                {assetLabel(lock).slice(0, 2)}
-              </div>
+              <AssetAvatar lock={lock} className="t-avatar" style={{ background: '#242018', color: '#f1cb73' }} />
               <div className="t-info">
                 <div className="t-name">{assetLabel(lock)}</div>
                 <div className="t-dex">{getChainById(lock.chainId)?.name ?? `Chain ${lock.chainId}`}</div>
@@ -491,9 +505,10 @@ export function Home() {
                 onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)}
                 style={{ background: 'var(--card-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
               >
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(217, 173, 74,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
-                  {assetLabel(lock).slice(0, 3)}
-                </div>
+                <AssetAvatar
+                  lock={lock}
+                  style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(217, 173, 74,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}
+                />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{assetLabel(lock)}</div>
                   <div style={{ fontSize: 11, color: 'var(--dim)', display: 'flex', gap: 5 }}>

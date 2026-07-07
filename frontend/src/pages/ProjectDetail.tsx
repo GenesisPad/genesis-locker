@@ -8,30 +8,8 @@ import {
 } from 'lucide-react'
 import { ApiLock, api, formatAmount, formatDate, formatUsd } from '../lib/api'
 import { getChainById } from '../lib/chains'
+import { parseMetadataURI } from '../lib/metadata'
 import { RiskScorecard, RiskCheck } from '../components/RiskScorecard'
-
-type Metadata = {
-  name?: string
-  symbol?: string
-  logo?: string
-  banner?: string
-  website?: string
-  twitter?: string
-  telegram?: string
-  discord?: string
-  description?: string
-}
-
-function parseMetadataURI(uri: string | null | undefined): Metadata | null {
-  if (!uri || !uri.startsWith('data:application/json;base64,')) return null
-  try {
-    const b64 = uri.slice('data:application/json;base64,'.length)
-    const json = decodeURIComponent(escape(atob(b64)))
-    return JSON.parse(json)
-  } catch {
-    return null
-  }
-}
 
 function fmt(n: number) {
   if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`

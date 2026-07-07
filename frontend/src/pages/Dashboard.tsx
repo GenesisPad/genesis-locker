@@ -1,23 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAccount } from 'wagmi'
 import { Lock, Infinity, ChevronRight, CheckCircle, Plus } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { ApiLock, api, formatAmount, formatDate, formatUsd } from '../lib/api'
+import { CHAIN_CONFIGS } from '../lib/chains'
+import { parseMetadataURI } from '../lib/metadata'
 
 export function Dashboard() {
   const navigate = useNavigate()
+  const { address, isConnected } = useAccount()
   const [locks, setLocks] = useState<ApiLock[]>([])
-  const [wallet, setWallet] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const cached = window.localStorage.getItem('genesis-locker-wallet') || ''
-    setWallet(cached)
-    if (!cached) return
-    Promise.all([api.walletLocks(1, cached), api.walletLocks(8453, cached), api.walletLocks(56, cached)])
+    setLocks([])
+    setError('')
+    if (!address) return
+    Promise.all(CHAIN_CONFIGS.map(c => api.walletLocks(c.id, address).catch(() => ({ locks: [] as ApiLock[] }))))
       .then(results => setLocks(results.flatMap(result => result.locks)))
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load wallet locks'))
-  }, [])
+  }, [address])
 
   const portfolio = useMemo(() => {
     const tvl = locks.reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString()
@@ -26,9 +29,9 @@ export function Dashboard() {
       { label: 'Total Locked Value', val: formatUsd(tvl), color: 'var(--text)' },
       { label: 'Active Locks', val: String(locks.length - permanent), color: 'var(--success)' },
       { label: 'Permanent Locks', val: String(permanent), color: 'var(--accent)' },
-      { label: 'Wallet', val: wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : 'Not connected', color: 'var(--accent-alt)' },
+      { label: 'Wallet', val: address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Not connected', color: 'var(--accent-alt)' },
     ]
-  }, [locks, wallet])
+  }, [locks, address])
 
   return (
     <div className="dashboard-page">
@@ -57,12 +60,18 @@ export function Dashboard() {
             </button>
           </div>
 
-          {locks.length === 0 && <div className="text-dim">{wallet ? 'No indexed locks for this wallet yet.' : 'Connect your wallet from the top bar to view your locks.'}</div>}
-          {locks.map(lock => (
+          {locks.length === 0 && <div className="text-dim">{isConnected ? 'No indexed locks for this wallet yet.' : 'Connect your wallet from the top bar to view your locks.'}</div>}
+          {locks.map(lock => {
+            const logo = parseMetadataURI(lock.metadataURI)?.logo
+            return (
             <div className="dash-lock-row" key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)} style={{ cursor: 'pointer' }}>
-              <div className="asset-avatar" style={{ background: lock.assetType === 'lp' ? '#001840' : '#242018', color: lock.assetType === 'lp' ? '#8fd6ac' : '#f1cb73' }}>
-                {(lock.token?.symbol || lock.assetAddress).slice(0, 2)}
-              </div>
+              {logo ? (
+                <img src={logo} alt="" className="asset-avatar" style={{ objectFit: 'cover' }} />
+              ) : (
+                <div className="asset-avatar" style={{ background: lock.assetType === 'lp' ? '#001840' : '#242018', color: lock.assetType === 'lp' ? '#8fd6ac' : '#f1cb73' }}>
+                  {(lock.token?.symbol || lock.assetAddress).slice(0, 2)}
+                </div>
+              )}
               <div className="dash-lock-info">
                 <div className="dash-lock-name">{lock.token?.symbol || lock.assetAddress}</div>
                 <div className="dash-lock-meta">{lock.assetType.toUpperCase()} · {lock.lockType} · {formatDate(lock.unlockDate)}</div>
@@ -76,7 +85,8 @@ export function Dashboard() {
               </span>
               <ChevronRight size={13} color="var(--dim)" />
             </div>
-          ))}
+            )
+          })}
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

@@ -1,7 +1,7 @@
 import { AssetType } from "@prisma/client";
 import { Contract, JsonRpcProvider, ZeroAddress, formatUnits } from "ethers";
 import { db } from "../db.js";
-import { erc20Abi, pairAbi, genesisLockerAbi } from "../contracts/genesisLockerAbi.js";
+import { erc20Abi, pairAbi, factoryAbi, genesisLockerAbi } from "../contracts/genesisLockerAbi.js";
 import { chains } from "../config.js";
 import { getNativeUsdPrice } from "./nativePrice.js";
 
@@ -119,6 +119,17 @@ export async function syncAssetMetadata(chainId: number, assetAddress: string, a
         update: { priceUsd: priced.tokenPriceUsd }
       });
     }
+  } else if (assetType === AssetType.TOKEN) {
+    // Plain token lock, no LP lock involved: try to find the pair ourselves
+    // via the chain's DEX factory (if configured) so this token can still get
+    // priced without ever having had its LP locked on Genesis Locker.
+    const priced = await priceTokenViaFactory(chainId, address, provider);
+    if (priced) {
+      await db.token.update({
+        where: { chainId_address: { chainId, address } },
+        data: { priceUsd: priced.tokenPriceUsd }
+      });
+    }
   }
 }
 
@@ -147,6 +158,49 @@ async function priceLpPair(
   if (!isToken0Native && !isToken1Native) return null;
 
   const otherToken = (isToken0Native ? token1 : token0).toLowerCase();
+  const priced = await priceByReserves(chainId, pairAddress, isToken0Native, otherToken, provider);
+  return priced ? { ...priced, otherToken } : null;
+}
+
+/**
+ * Plain-token equivalent of priceLpPair: when a token was locked on its own
+ * (no LP lock involved), looks up its pair against the chain's wrapped-native
+ * currency via the configured DEX factory, then prices it the same way. Only
+ * runs when ROBINHOOD_DEX_FACTORY_ADDRESS (or the equivalent per-chain env
+ * var) is set - returns null rather than guessing a factory address.
+ */
+async function priceTokenViaFactory(
+  chainId: number,
+  tokenAddress: string,
+  provider: JsonRpcProvider
+): Promise<{ reserveUsd: number; tokenPriceUsd: number } | null> {
+  const chain = chains.find((c) => c.id === chainId);
+  if (!chain?.wrappedNativeAddress || !chain.dexFactoryAddress) return null;
+
+  try {
+    const factory = new Contract(chain.dexFactoryAddress, factoryAbi, provider);
+    const pairAddress = String(await factory.getPair(tokenAddress, chain.wrappedNativeAddress));
+    if (!pairAddress || pairAddress === ZeroAddress) return null;
+
+    const pair = new Contract(pairAddress, pairAbi, provider);
+    const token0 = String(await pair.token0()).toLowerCase();
+    const isToken0Native = token0 === chain.wrappedNativeAddress.toLowerCase();
+
+    return priceByReserves(chainId, pairAddress, isToken0Native, tokenAddress, provider);
+  } catch {
+    return null;
+  }
+}
+
+async function priceByReserves(
+  chainId: number,
+  pairAddress: string,
+  isToken0Native: boolean,
+  otherToken: string,
+  provider: JsonRpcProvider
+): Promise<{ reserveUsd: number; tokenPriceUsd: number } | null> {
+  const chain = chains.find((c) => c.id === chainId);
+  if (!chain) return null;
 
   try {
     const pair = new Contract(pairAddress, pairAbi, provider);
@@ -167,7 +221,7 @@ async function priceLpPair(
 
     const tokenPriceUsd = (nativeReserveFormatted / otherReserveFormatted) * nativeUsdPrice;
     const reserveUsd = nativeReserveFormatted * nativeUsdPrice * 2;
-    return { reserveUsd, otherToken, tokenPriceUsd };
+    return { reserveUsd, tokenPriceUsd };
   } catch {
     return null;
   }

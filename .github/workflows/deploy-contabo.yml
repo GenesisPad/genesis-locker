@@ -38,6 +38,11 @@ jobs:
           # on the next deploy, since the env file is rewritten from scratch
           # every run.
           ROBINHOOD_RPC_URL: ${{ secrets.ROBINHOOD_RPC_URL }}
+          # Optional: Uniswap V2-compatible factory address on Robinhood Chain,
+          # used to price plain token locks that never had their LP locked
+          # here. Leave unset if no such factory/DEX exists yet - the API
+          # will just skip pricing rather than guess.
+          ROBINHOOD_DEX_FACTORY_ADDRESS: ${{ secrets.ROBINHOOD_DEX_FACTORY_ADDRESS }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
@@ -45,7 +50,7 @@ jobs:
           port: ${{ secrets.CONTABO_PORT || '22' }}
           timeout: 30s
           command_timeout: 15m
-          envs: ROBINHOOD_RPC_URL
+          envs: ROBINHOOD_RPC_URL,ROBINHOOD_DEX_FACTORY_ADDRESS
           script: |
             set -e
 
@@ -110,6 +115,7 @@ jobs:
             DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
             ROBINHOOD_RPC_URL=${ROBINHOOD_RPC_URL:-https://rpc.mainnet.chain.robinhood.com}
             ROBINHOOD_LOCKER_ADDRESS=0x0372a1AE860CDc9357ac6bc8e9F97856b37B80Ed
+            ROBINHOOD_DEX_FACTORY_ADDRESS=${ROBINHOOD_DEX_FACTORY_ADDRESS:-}
             INDEXER_BATCH_SIZE=2000
             INDEXER_CONFIRMATIONS=12
             UPLOADS_DIR=$UPLOADS_DIR

@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { CheckCircle2, CheckCircle, Shield, Copy, ExternalLink, Infinity, Clock, ChevronLeft } from 'lucide-react'
+import { CheckCircle2, CheckCircle, Shield, Copy, ExternalLink, Infinity, Clock, ChevronLeft, Globe, Twitter, MessageCircle, Hash } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { RiskBadge } from '../components/RiskBadge'
 import { ApiLock, api, formatAmount, formatDate, formatUsd, shortAddress } from '../lib/api'
+import { parseMetadataURI } from '../lib/metadata'
 import { manageLockTransaction } from '../lib/wallet'
 
 function CopyBtn({ value }: { value: string }) {
@@ -49,6 +50,7 @@ export function LockDetail() {
   }, [chainId, id])
 
   const progress = useMemo(() => lock ? pctProgress(lock) : 0, [lock])
+  const metadata = useMemo(() => lock ? parseMetadataURI(lock.metadataURI) : null, [lock])
 
   async function runAction(action: 'withdraw' | 'permanentLock' | 'extendLock' | 'increaseLockAmount' | 'transferLockOwnership') {
     if (!lock) return
@@ -84,6 +86,50 @@ export function LockDetail() {
 
       {error && <div className="form-alert error">{error}</div>}
       {actionStatus && <div className="form-alert">{actionStatus}</div>}
+
+      {metadata && (metadata.logo || metadata.banner || metadata.description || metadata.website || metadata.twitter || metadata.telegram || metadata.discord) && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.03 }}
+          className="detail-card"
+          style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}
+        >
+          {metadata.logo && (
+            <div style={{ width: 56, height: 56, borderRadius: '50%', flexShrink: 0, border: '2px solid rgba(217, 173, 74,0.3)', overflow: 'hidden', background: '#242018' }}>
+              <img src={metadata.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: metadata.description ? 6 : 0 }}>
+              {metadata.name || lock.token?.symbol}
+            </div>
+            {metadata.description && (
+              <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 10px', maxWidth: 640 }}>{metadata.description}</p>
+            )}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {metadata.website && (
+                <a href={metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+                  <Globe size={10} /> {metadata.website.replace(/^https?:\/\//, '')}
+                </a>
+              )}
+              {metadata.twitter && (
+                <a href={metadata.twitter.startsWith('http') ? metadata.twitter : `https://x.com/${metadata.twitter.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+                  <Twitter size={10} /> X
+                </a>
+              )}
+              {metadata.telegram && (
+                <a href={metadata.telegram.startsWith('http') ? metadata.telegram : `https://${metadata.telegram}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+                  <MessageCircle size={10} /> Telegram
+                </a>
+              )}
+              {metadata.discord && (
+                <a href={metadata.discord.startsWith('http') ? metadata.discord : `https://${metadata.discord}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+                  <Hash size={10} /> Discord
+                </a>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }}>
         <div className="lock-detail-grid">

@@ -30,3 +30,10 @@ export const pairAbi = [
   "function token1() view returns (address)",
   "function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)"
 ] as const;
+
+// Standard Uniswap V2-compatible factory interface, used to discover a
+// token's pair against the chain's wrapped-native currency even when that
+// pair itself has never been locked on Genesis Locker.
+export const factoryAbi = [
+  "function getPair(address tokenA, address tokenB) view returns (address pair)"
+] as const;
