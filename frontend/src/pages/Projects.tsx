@@ -164,12 +164,12 @@ export function Projects() {
               fontSize: 13, fontWeight: 600,
               background: 'none', border: 'none', cursor: 'pointer',
               color: activeTab === key ? 'var(--text)' : 'var(--dim)',
-              borderBottom: `2px solid ${activeTab === key ? 'var(--purple)' : 'transparent'}`,
+              borderBottom: `2px solid ${activeTab === key ? 'var(--accent)' : 'transparent'}`,
               marginBottom: -1,
               transition: 'color 0.15s, border-color 0.15s',
             }}
           >
-            <Icon size={13} color={activeTab === key ? 'var(--purple)' : 'var(--dim)'} />
+            <Icon size={13} color={activeTab === key ? 'var(--accent)' : 'var(--dim)'} />
             {label}
           </button>
         ))}
@@ -203,7 +203,7 @@ export function Projects() {
             {statItems.map(({ icon: Icon, label, value }) => (
               <div key={label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
                 <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(217, 173, 74,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon size={15} color="var(--purple)" />
+                  <Icon size={15} color="var(--accent)" />
                 </div>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{value}</div>
@@ -267,7 +267,7 @@ export function Projects() {
                     return (
                       <tr key={p.address} onClick={() => navigate(`/project/${p.address}`)} style={{ cursor: 'pointer' }}>
                         <td>
-                          <span style={{ color: i < 3 ? 'var(--purple)' : 'var(--dim)', fontWeight: i < 3 ? 700 : 500, fontSize: 13 }}>
+                          <span style={{ color: i < 3 ? 'var(--accent)' : 'var(--dim)', fontWeight: i < 3 ? 700 : 500, fontSize: 13 }}>
                             {i + 1}
                           </span>
                         </td>

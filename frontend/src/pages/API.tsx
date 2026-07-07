@@ -80,7 +80,7 @@ export function APIPage() {
         transition={{ duration: 0.35 }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <Code2 size={22} color="var(--purple)" />
+          <Code2 size={22} color="var(--accent)" />
           <h1 className="page-title" style={{ marginBottom: 0 }}>Public API</h1>
         </div>
         <p className="page-desc">
@@ -93,7 +93,7 @@ export function APIPage() {
         border: '1px solid rgba(217, 173, 74,0.15)', borderRadius: 'var(--r)',
         marginBottom: 24, fontFamily: 'monospace', fontSize: 13,
       }}>
-        Base URL: <span style={{ color: 'var(--purple)' }}>https://api.genesispad.app</span>
+        Base URL: <span style={{ color: 'var(--accent)' }}>https://api.genesispad.app</span>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

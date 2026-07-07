@@ -512,7 +512,7 @@ export function Home() {
           </div>
           <button
             onClick={() => navigate('/calendar')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 600, color: 'var(--purple)', background: 'rgba(217, 173, 74,0.08)', border: '1px solid rgba(217, 173, 74,0.25)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', background: 'rgba(217, 173, 74,0.08)', border: '1px solid rgba(217, 173, 74,0.25)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}
           >
             View Calendar <ChevronRight size={13} />
           </button>
@@ -528,7 +528,7 @@ export function Home() {
               onClick={() => navigate('/calendar')}
               style={{ background: 'var(--card-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
             >
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(217, 173, 74,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--purple)', flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(217, 173, 74,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
                 {u.asset.slice(0, 3)}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -570,11 +570,11 @@ export function Home() {
 
       {/* Footer */}
       <footer className="page-footer">
-        <span>© 2024 Genesis Locker. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} Genesis Locker. All rights reserved.</span>
         <div className="footer-links">
           <a href="/docs">Docs</a>
           <a href="/api">API</a>
-          <a href="#">Github</a>
+          <a href="https://github.com/GenesisPad/genesis-locker" target="_blank" rel="noreferrer">Github</a>
           <a href="#">Terms</a>
           <a href="#">Privacy</a>
         </div>

@@ -344,7 +344,7 @@ export function CreateLock() {
           {/* ── Lock Name (optional) ── */}
           <div className="form-card" style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <Tag size={13} color="var(--purple)" />
+              <Tag size={13} color="var(--accent)" />
               <span className="form-section-title" style={{ marginBottom: 0 }}>Lock Name</span>
               <span style={{ fontSize: 11, color: 'var(--dim)', fontWeight: 400 }}>optional</span>
             </div>
@@ -382,9 +382,9 @@ export function CreateLock() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 7,
                       padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: chain.id === c.id ? 600 : 400,
-                      border: `1px solid ${chain.id === c.id ? 'var(--purple)' : 'var(--border)'}`,
+                      border: `1px solid ${chain.id === c.id ? 'var(--accent)' : 'var(--border)'}`,
                       background: chain.id === c.id ? 'rgba(217, 173, 74,0.12)' : 'transparent',
-                      color: chain.id === c.id ? 'var(--purple)' : 'var(--muted)',
+                      color: chain.id === c.id ? 'var(--accent)' : 'var(--muted)',
                       cursor: 'pointer', transition: 'all 150ms',
                     }}
                   >
@@ -412,7 +412,7 @@ export function CreateLock() {
                       transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                       style={{ display: 'flex' }}
                     >
-                      <Loader2 size={14} color="var(--purple)" />
+                      <Loader2 size={14} color="var(--accent)" />
                     </motion.span>
                   </span>
                 )}
@@ -495,9 +495,9 @@ export function CreateLock() {
                           flex: 1,
                           padding: '9px 12px',
                           borderRadius: 8,
-                          border: `1px solid ${tab === 'token' ? 'var(--purple)' : 'var(--border)'}`,
+                          border: `1px solid ${tab === 'token' ? 'var(--accent)' : 'var(--border)'}`,
                           background: tab === 'token' ? 'rgba(217, 173, 74,0.15)' : 'transparent',
-                          color: tab === 'token' ? 'var(--purple)' : 'var(--muted)',
+                          color: tab === 'token' ? 'var(--accent)' : 'var(--muted)',
                           fontWeight: tab === 'token' ? 700 : 400,
                           cursor: 'pointer',
                           fontSize: 13,
@@ -513,9 +513,9 @@ export function CreateLock() {
                             flex: 1,
                             padding: '9px 12px',
                             borderRadius: 8,
-                            border: `1px solid ${tab === 'lp' ? 'var(--purple)' : 'var(--border)'}`,
+                            border: `1px solid ${tab === 'lp' ? 'var(--accent)' : 'var(--border)'}`,
                             background: tab === 'lp' ? 'rgba(217, 173, 74,0.15)' : 'transparent',
-                            color: tab === 'lp' ? 'var(--purple)' : 'var(--muted)',
+                            color: tab === 'lp' ? 'var(--accent)' : 'var(--muted)',
                             fontWeight: tab === 'lp' ? 700 : 400,
                             cursor: 'pointer',
                             fontSize: 13,
@@ -606,7 +606,7 @@ export function CreateLock() {
                       onClick={() => setAmount(tokenBalance.formatted)}
                       style={{
                         position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                        background: 'rgba(217, 173, 74,0.15)', color: 'var(--purple)',
+                        background: 'rgba(217, 173, 74,0.15)', color: 'var(--accent)',
                         border: '1px solid rgba(217, 173, 74,0.35)', borderRadius: 5,
                         padding: '3px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                         letterSpacing: '0.04em',
@@ -752,7 +752,7 @@ export function CreateLock() {
                           >
                             {logoUpload === 'compressing' ? (
                               <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} style={{ display: 'flex' }}>
-                                <Loader2 size={18} color="var(--purple)" />
+                                <Loader2 size={18} color="var(--accent)" />
                               </motion.span>
                             ) : (
                               <>
@@ -805,7 +805,7 @@ export function CreateLock() {
                             {bannerUpload === 'compressing' ? (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} style={{ display: 'flex' }}>
-                                  <Loader2 size={16} color="var(--purple)" />
+                                  <Loader2 size={16} color="var(--accent)" />
                                 </motion.span>
                                 <span style={{ fontSize: 12, color: 'var(--dim)' }}>Compressing...</span>
                               </div>
@@ -922,7 +922,7 @@ export function CreateLock() {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{detected?.token.name || 'Project'}</div>
                     {social.website && (
-                      <div style={{ fontSize: 11, color: 'var(--purple)' }}>{social.website.replace(/^https?:\/\//, '')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--accent)' }}>{social.website.replace(/^https?:\/\//, '')}</div>
                     )}
                   </div>
                 </div>
@@ -1000,7 +1000,7 @@ export function CreateLock() {
 
             <div className="fee-note">
               <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                <Info size={13} style={{ flexShrink: 0, marginTop: 1, color: 'var(--purple)' }} />
+                <Info size={13} style={{ flexShrink: 0, marginTop: 1, color: 'var(--accent)' }} />
                 <span>
                   Fees are collected in the native chain token and split between founder and community treasury.
                   Gas costs are additional.

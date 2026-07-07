@@ -6,13 +6,13 @@ const SECTIONS = [
   {
     icon: Lock,
     title: 'Getting Started',
-    color: 'var(--purple)',
+    color: 'var(--accent)',
     items: ['What is Genesis Locker?', 'How locking works', 'Supported chains', 'Platform fees'],
   },
   {
     icon: Lock,
     title: 'Creating Locks',
-    color: 'var(--blue)',
+    color: 'var(--accent-alt)',
     items: ['LP Token Locks', 'Token Locks', 'Cliff locks', 'Vesting locks', 'Permanent locks'],
   },
   {
@@ -48,7 +48,7 @@ export function Docs() {
         transition={{ duration: 0.35 }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <BookOpen size={22} color="var(--purple)" />
+          <BookOpen size={22} color="var(--accent)" />
           <h1 className="page-title" style={{ marginBottom: 0 }}>Documentation</h1>
         </div>
         <p className="page-desc">

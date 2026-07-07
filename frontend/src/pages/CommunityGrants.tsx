@@ -150,7 +150,7 @@ export function CommunityGrants() {
           transition={{ duration: 0.35, delay: 0.1 }}
         >
           <div className="community-panel-head">
-            <ShieldCheck size={18} color="var(--blue)" />
+            <ShieldCheck size={18} color="var(--accent-alt)" />
             <h2>Governance guardrails</h2>
           </div>
           <p className="community-copy">
@@ -182,7 +182,7 @@ export function CommunityGrants() {
 
       <section className="community-section">
         <div className="community-section-head">
-          <Vote size={18} color="var(--purple)" />
+          <Vote size={18} color="var(--accent)" />
           <h2>Proposal and payment flow</h2>
         </div>
         <div className="community-timeline">
@@ -219,7 +219,7 @@ export function CommunityGrants() {
 
         <div className="community-panel community-panel-large">
           <div className="community-panel-head">
-            <HandHeart size={18} color="var(--purple)" />
+            <HandHeart size={18} color="var(--accent)" />
             <h2>Who benefits</h2>
           </div>
           <div className="community-benefits">

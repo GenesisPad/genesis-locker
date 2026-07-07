@@ -203,7 +203,7 @@ export function ProjectDetail() {
         <Shield size={40} style={{ marginBottom: 16, opacity: 0.25 }} />
         <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Project not found</div>
         <div style={{ fontSize: 13, marginBottom: 24 }}>No verified profile is associated with this address.</div>
-        <button onClick={() => navigate('/projects')} style={{ padding: '8px 20px', borderRadius: 8, background: 'rgba(217, 173, 74,0.15)', border: '1px solid rgba(217, 173, 74,0.3)', color: 'var(--purple)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+        <button onClick={() => navigate('/projects')} style={{ padding: '8px 20px', borderRadius: 8, background: 'rgba(217, 173, 74,0.15)', border: '1px solid rgba(217, 173, 74,0.3)', color: 'var(--accent)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
           ← Back to Projects
         </button>
       </div>
@@ -243,7 +243,7 @@ export function ProjectDetail() {
         </div>
       ) : (
         <div style={{ height: 120, borderRadius: 12, marginBottom: 20, background: 'linear-gradient(135deg, #10110f 0%, #242018 55%, #10110f 100%)', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, opacity: 0.06, backgroundImage: 'repeating-linear-gradient(45deg, var(--purple) 0, var(--purple) 1px, transparent 0, transparent 50%)', backgroundSize: '14px 14px' }} />
+          <div style={{ position: 'absolute', inset: 0, opacity: 0.06, backgroundImage: 'repeating-linear-gradient(45deg, var(--accent) 0, var(--accent) 1px, transparent 0, transparent 50%)', backgroundSize: '14px 14px' }} />
         </div>
       )}
 
@@ -263,7 +263,7 @@ export function ProjectDetail() {
             <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{profile.name}</h1>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--dim)', background: 'rgba(255,255,255,0.05)', padding: '2px 7px', borderRadius: 4, border: '1px solid var(--border)' }}>{profile.symbol}</span>
             <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>{profile.chain}</span>
-            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(217, 173, 74,0.12)', color: 'var(--purple)', border: '1px solid rgba(217, 173, 74,0.25)' }}>{profile.category}</span>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(217, 173, 74,0.12)', color: 'var(--accent)', border: '1px solid rgba(217, 173, 74,0.25)' }}>{profile.category}</span>
           </div>
           {profile.description && (
             <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 12px', lineHeight: 1.6, maxWidth: 620 }}>{profile.description}</p>
@@ -341,10 +341,10 @@ export function ProjectDetail() {
           {/* Chart */}
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <BarChart2 size={13} color="var(--purple)" />
+              <BarChart2 size={13} color="var(--accent)" />
               <span style={{ fontWeight: 600, fontSize: 13 }}>Price Chart</span>
               <span style={{ fontSize: 11, color: 'var(--dim)' }}>powered by GeckoTerminal</span>
-              <a href={`https://www.geckoterminal.com/${geckoChain}/pools/${geckoPool}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--purple)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+              <a href={`https://www.geckoterminal.com/${geckoChain}/pools/${geckoPool}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
                 Full chart <ExternalLink size={10} />
               </a>
             </div>
@@ -354,7 +354,7 @@ export function ProjectDetail() {
           {/* All Locks */}
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Lock size={13} color="var(--purple)" />
+              <Lock size={13} color="var(--accent)" />
               <span style={{ fontWeight: 600, fontSize: 13 }}>All Locks</span>
               <span style={{ fontSize: 11, color: 'var(--dim)', background: 'rgba(255,255,255,0.05)', padding: '1px 7px', borderRadius: 10 }}>{locks.length}</span>
               <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--dim)' }}>
@@ -428,7 +428,7 @@ export function ProjectDetail() {
             {/* Token contract */}
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
-                <Shield size={13} color="var(--purple)" /> Token Contract
+                <Shield size={13} color="var(--accent)" /> Token Contract
               </div>
               {[
                 { label: 'Address', value: `${profile.address.slice(0, 10)}...${profile.address.slice(-8)}`, copy: profile.address, mono: true },
@@ -452,7 +452,7 @@ export function ProjectDetail() {
             {lp && profile.lpAddress && (
               <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <Layers size={13} color="var(--purple)" /> LP Pair
+                  <Layers size={13} color="var(--accent)" /> LP Pair
                 </div>
                 {[
                   { label: 'Address', value: `${profile.lpAddress.slice(0, 10)}...${profile.lpAddress.slice(-8)}`, copy: profile.lpAddress, mono: true },
@@ -478,7 +478,7 @@ export function ProjectDetail() {
           {/* Lock events timeline */}
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
-              <CheckCircle size={13} color="var(--purple)" /> Lock History
+              <CheckCircle size={13} color="var(--accent)" /> Lock History
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {events.map((ev, i) => (
@@ -515,7 +515,7 @@ export function ProjectDetail() {
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text)' }}
             >
               <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 7 }}>
-                <Code2 size={13} color="var(--purple)" /> Embed Lock Badge
+                <Code2 size={13} color="var(--accent)" /> Embed Lock Badge
               </div>
               {showEmbed ? <ChevronUp size={14} color="var(--dim)" /> : <ChevronDown size={14} color="var(--dim)" />}
             </button>
@@ -530,7 +530,7 @@ export function ProjectDetail() {
                   </pre>
                   <button
                     onClick={() => navigator.clipboard.writeText(embedSnippet).catch(() => {})}
-                    style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(217, 173, 74,0.15)', border: '1px solid rgba(217, 173, 74,0.3)', borderRadius: 5, padding: '3px 8px', fontSize: 10, color: 'var(--purple)', cursor: 'pointer', fontWeight: 600 }}
+                    style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(217, 173, 74,0.15)', border: '1px solid rgba(217, 173, 74,0.3)', borderRadius: 5, padding: '3px 8px', fontSize: 10, color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}
                   >
                     Copy
                   </button>
@@ -546,7 +546,7 @@ export function ProjectDetail() {
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text)' }}
             >
               <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 7 }}>
-                <Code2 size={13} color="var(--purple)" /> API Endpoints
+                <Code2 size={13} color="var(--accent)" /> API Endpoints
               </div>
               {apiExpanded ? <ChevronUp size={14} color="var(--dim)" /> : <ChevronDown size={14} color="var(--dim)" />}
             </button>
@@ -558,11 +558,11 @@ export function ProjectDetail() {
                   ...(profile.lpAddress ? [{ method: 'GET', path: `/v1/lp/${profile.chain.toLowerCase()}/${profile.lpAddress}/status` }] : []),
                 ].map(ep => (
                   <div key={ep.path} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, padding: '8px 10px' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--purple)', marginRight: 6 }}>{ep.method}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', marginRight: 6 }}>{ep.method}</span>
                     <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--muted)', wordBreak: 'break-all' }}>{ep.path}</span>
                   </div>
                 ))}
-                <a href="/api" style={{ fontSize: 11, color: 'var(--purple)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                <a href="/api" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
                   View full API docs <ExternalLink size={10} />
                 </a>
               </div>

@@ -125,7 +125,7 @@ export function UnlockCalendar() {
               fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
               border: `1px solid ${chain === c ? 'rgba(217, 173, 74,0.5)' : 'var(--border)'}`,
               background: chain === c ? 'rgba(217, 173, 74,0.12)' : 'transparent',
-              color: chain === c ? 'var(--purple)' : 'var(--dim)',
+              color: chain === c ? 'var(--accent)' : 'var(--dim)',
             }}>{c === 'all' ? 'All Chains' : c}</button>
           ))}
         </div>
@@ -139,7 +139,7 @@ export function UnlockCalendar() {
               fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
               border: `1px solid ${type === t ? 'rgba(103, 199, 144,0.5)' : 'var(--border)'}`,
               background: type === t ? 'rgba(103, 199, 144,0.12)' : 'transparent',
-              color: type === t ? 'var(--blue)' : 'var(--dim)',
+              color: type === t ? 'var(--accent-alt)' : 'var(--dim)',
             }}>{t === 'all' ? 'All Types' : t}</button>
           ))}
         </div>
@@ -222,7 +222,7 @@ function ListView({ grouped, navigate }: { grouped: Map<string, CalendarUnlock[]
                     <div style={{
                       width: 36, height: 36, borderRadius: 8, flexShrink: 0,
                       background: 'rgba(217, 173, 74,0.1)', display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--purple)',
+                      justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)',
                     }}>
                       {u.symbol.slice(0, 4)}
                     </div>
@@ -236,7 +236,7 @@ function ListView({ grouped, navigate }: { grouped: Map<string, CalendarUnlock[]
                         <span style={{
                           fontSize: 9.5, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
                           background: u.type === 'LP' ? 'rgba(103, 199, 144,0.1)' : 'rgba(241, 203, 115,0.1)',
-                          color: u.type === 'LP' ? 'var(--blue)' : 'var(--purple-2)',
+                          color: u.type === 'LP' ? 'var(--accent-alt)' : 'var(--accent-2)',
                         }}>{u.type}</span>
                       </div>
                     </div>
@@ -332,7 +332,7 @@ function CalendarView({ filtered, navigate }: { filtered: CalendarUnlock[]; navi
                   }}
                     onClick={() => hasEvent && navigate(`/lock/${events[0].id}`)}
                   >
-                    <div style={{ fontSize: 10, fontWeight: hasEvent ? 700 : 400, color: hasEvent ? 'var(--purple)' : 'var(--dim)', lineHeight: 1 }}>{day}</div>
+                    <div style={{ fontSize: 10, fontWeight: hasEvent ? 700 : 400, color: hasEvent ? 'var(--accent)' : 'var(--dim)', lineHeight: 1 }}>{day}</div>
                     {hasEvent && (
                       <div style={{ marginTop: 3 }}>
                         {events.slice(0, 2).map(u => (

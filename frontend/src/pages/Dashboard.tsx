@@ -25,8 +25,8 @@ export function Dashboard() {
     return [
       { label: 'Total Locked Value', val: formatUsd(tvl), color: 'var(--text)' },
       { label: 'Active Locks', val: String(locks.length - permanent), color: 'var(--success)' },
-      { label: 'Permanent Locks', val: String(permanent), color: 'var(--purple)' },
-      { label: 'Wallet', val: wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : 'Not connected', color: 'var(--blue)' },
+      { label: 'Permanent Locks', val: String(permanent), color: 'var(--accent)' },
+      { label: 'Wallet', val: wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : 'Not connected', color: 'var(--accent-alt)' },
     ]
   }, [locks, wallet])
 
@@ -83,8 +83,8 @@ export function Dashboard() {
           <div className="dash-card">
             <div className="dash-card-title" style={{ marginBottom: 12 }}>Quick Actions</div>
             {[
-              { label: 'Create LP Lock', sub: 'Lock DEX LP tokens', to: '/create', color: 'var(--purple)' },
-              { label: 'Create Token Lock', sub: 'Lock ERC-20 tokens', to: '/create', color: 'var(--blue)' },
+              { label: 'Create LP Lock', sub: 'Lock DEX LP tokens', to: '/create', color: 'var(--accent)' },
+              { label: 'Create Token Lock', sub: 'Lock ERC-20 tokens', to: '/create', color: 'var(--accent-alt)' },
               { label: 'Browse All Locks', sub: 'Explore indexed locks', to: '/locks', color: 'var(--muted)' },
               { label: 'View Analytics', sub: 'TVL and chain stats', to: '/analytics', color: 'var(--success)' },
             ].map(action => (

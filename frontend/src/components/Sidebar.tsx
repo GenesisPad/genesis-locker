@@ -115,7 +115,7 @@ export function Sidebar({ className = '', onNavigate }: { className?: string; on
           <a href="#" className="social-btn" aria-label="Telegram" title="Telegram">
             <TelegramIcon size={15} />
           </a>
-          <a href="#" className="social-btn" aria-label="GitHub" title="GitHub">
+          <a href="https://github.com/GenesisPad/genesis-locker" target="_blank" rel="noreferrer" className="social-btn" aria-label="GitHub" title="GitHub">
             <Github size={15} />
           </a>
         </div>

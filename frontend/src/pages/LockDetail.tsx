@@ -96,7 +96,7 @@ export function LockDetail() {
               <span className="detail-field-val">
                 <button
                   onClick={() => navigate(`/project/${lock.assetAddress}`)}
-                  style={{ fontSize: 11.5, color: 'var(--purple)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
+                  style={{ fontSize: 11.5, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
                 >
                   <ExternalLink size={11} />
                   {lock.assetType === 'lp' ? 'View LP Detail' : 'View Token Detail'}
@@ -164,7 +164,7 @@ export function LockDetail() {
         </div>
 
         <div style={{ padding: '16px 20px', background: 'rgba(217, 173, 74,0.05)', border: '1px solid rgba(217, 173, 74,0.14)', borderRadius: 'var(--r)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Shield size={18} color="var(--purple)" />
+          <Shield size={18} color="var(--accent)" />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Share this lock verification</div>
             <div style={{ fontSize: 12, color: 'var(--muted)' }}>locker.genesispad.app/lock/{lock.chainId}/{lock.lockId}</div>

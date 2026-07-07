@@ -288,7 +288,7 @@ export function Analytics() {
                     fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 4, cursor: 'pointer',
                     border: `1px solid ${lockView === v ? 'rgba(217, 173, 74,0.5)' : 'var(--border)'}`,
                     background: lockView === v ? 'rgba(217, 173, 74,0.12)' : 'transparent',
-                    color: lockView === v ? 'var(--purple)' : 'var(--dim)',
+                    color: lockView === v ? 'var(--accent)' : 'var(--dim)',
                   }}
                 >
                   {v}
@@ -435,7 +435,7 @@ export function Analytics() {
                   fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
                   border: `1px solid ${leaderSort === key ? 'rgba(217, 173, 74,0.5)' : 'var(--border)'}`,
                   background: leaderSort === key ? 'rgba(217, 173, 74,0.12)' : 'transparent',
-                  color: leaderSort === key ? 'var(--purple)' : 'var(--dim)',
+                  color: leaderSort === key ? 'var(--accent)' : 'var(--dim)',
                 }}
               >
                 {label}
@@ -477,7 +477,7 @@ export function Analytics() {
                     <td style={{ color: 'var(--dim)', fontSize: 12, fontWeight: 600, width: 28 }}>{i + 1}</td>
                     <td>
                       <div className="asset-cell">
-                        <div className="asset-avatar" style={{ background: 'rgba(217, 173, 74,0.12)', color: 'var(--purple)', fontSize: 9 }}>
+                        <div className="asset-avatar" style={{ background: 'rgba(217, 173, 74,0.12)', color: 'var(--accent)', fontSize: 9 }}>
                           {t.symbol?.slice(0, 3) ?? '??'}
                         </div>
                         <div>
@@ -560,7 +560,7 @@ export function Analytics() {
               <div className="chart-title" style={{ marginBottom: 2 }}>Upcoming Unlocks</div>
               <div className="chart-sub">Next 90 days</div>
             </div>
-            <button style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--purple)' }}>
+            <button style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--accent)' }}>
               View all <ChevronRight size={12} />
             </button>
           </div>
@@ -571,7 +571,7 @@ export function Analytics() {
                 padding: '8px 10px', borderRadius: 6,
                 background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)',
               }}>
-                <div className="asset-avatar" style={{ background: 'rgba(217, 173, 74,0.1)', color: 'var(--purple)', fontSize: 9, width: 28, height: 28, borderRadius: 6, flexShrink: 0 }}>
+                <div className="asset-avatar" style={{ background: 'rgba(217, 173, 74,0.1)', color: 'var(--accent)', fontSize: 9, width: 28, height: 28, borderRadius: 6, flexShrink: 0 }}>
                   {u.asset.slice(0, 2)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>

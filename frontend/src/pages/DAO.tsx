@@ -374,7 +374,7 @@ export function DAO() {
         {statsItems.map(({ icon: Icon, label, value }) => (
           <div key={label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
             <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(217, 173, 74,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Icon size={15} color="var(--purple)" />
+              <Icon size={15} color="var(--accent)" />
             </div>
             <div>
               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{value}</div>
@@ -390,7 +390,7 @@ export function DAO() {
         style={{ background: 'linear-gradient(135deg, rgba(217, 173, 74,0.1) 0%, rgba(103, 199, 144,0.06) 100%)', border: '1px solid rgba(217, 173, 74,0.2)', borderRadius: 12, padding: '16px 22px', marginBottom: 22, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Shield size={18} color="var(--purple)" />
+          <Shield size={18} color="var(--accent)" />
           <div>
             <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 2 }}>DAO Treasury</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>{TREASURY_USD} <span style={{ fontSize: 13, color: 'var(--dim)', fontWeight: 500 }}>/ {TREASURY_LOCK}</span></div>
@@ -431,7 +431,7 @@ export function DAO() {
           <div key={i} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(217, 173, 74,0.1)', border: '1px solid rgba(217, 173, 74,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <step.icon size={13} color="var(--purple)" />
+                <step.icon size={13} color="var(--accent)" />
               </div>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{step.title}</span>
             </div>
@@ -464,7 +464,7 @@ export function DAO() {
               padding: '8px 16px', fontSize: 13, fontWeight: 600,
               background: 'none', border: 'none', cursor: 'pointer',
               color: tab === t.key ? 'var(--text)' : 'var(--dim)',
-              borderBottom: `2px solid ${tab === t.key ? 'var(--purple)' : 'transparent'}`,
+              borderBottom: `2px solid ${tab === t.key ? 'var(--accent)' : 'transparent'}`,
               marginBottom: -1, transition: 'color 0.15s, border-color 0.15s',
             }}
           >
