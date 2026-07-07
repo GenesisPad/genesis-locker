@@ -1,12 +1,14 @@
 name: Deploy to Contabo
 
-# Deploys the Genesis Locker frontend (static Vite SPA) to
+# Deploys Genesis Locker (static frontend + API + indexer) to
 # https://locker.genesispad.app on the shared Contabo host.
 #
 # SAFETY: this workflow is scoped strictly to genesis-locker. It only ever
-# writes /var/www/genesis-locker and an nginx server block whose server_name is
-# exactly "locker.genesispad.app". It NEVER touches, greps, moves, or deletes
-# any other project's files, nginx configs, or TLS certificates.
+# writes /var/www/genesis-locker, one Postgres role+database named
+# genesis_locker, one pm2 process named genesis-locker-api, one cron entry
+# tagged genesis-locker-indexer, and one nginx server block for exactly
+# locker.genesispad.app. It NEVER touches, greps, moves, or deletes any other
+# project's files, databases, processes, or nginx configs.
 
 on:
   workflow_dispatch:
@@ -15,6 +17,7 @@ on:
       - main
     paths:
       - 'frontend/**'
+      - 'api/**'
       - '.github/workflows/deploy-contabo.yml'
 
 concurrency:
@@ -39,28 +42,113 @@ jobs:
 
             APP_ROOT=/var/www/genesis-locker
             RELEASE_ROOT="$APP_ROOT/releases"
+            SHARED_ROOT="$APP_ROOT/shared"
             RELEASE_ID="${{ github.sha }}"
             RELEASE_DIR="$RELEASE_ROOT/$RELEASE_ID"
             CURRENT_LINK="$APP_ROOT/current"
             DOMAIN="locker.genesispad.app"
             REPO_URL="https://github.com/GenesisPad/genesis-locker.git"
+            API_ENV_FILE="$SHARED_ROOT/api.env"
+            API_PORT=4010
+            DB_NAME=genesis_locker
+            DB_USER=genesis_locker
 
-            mkdir -p "$RELEASE_ROOT"
+            mkdir -p "$RELEASE_ROOT" "$SHARED_ROOT"
             rm -rf "$RELEASE_DIR"
             git clone --depth 1 --branch main "$REPO_URL" "$RELEASE_DIR"
 
-            # ── Build the static frontend ──────────────────────────────────
+            # ── Provision Postgres (idempotent, scoped to our own role/db) ──
+            DB_PASS=""
+            if [ -f "$API_ENV_FILE" ]; then
+              DB_PASS=$(grep -oP '(?<=:)[^@]+(?=@localhost)' "$API_ENV_FILE" | head -n1 || true)
+            fi
+            if [ -z "$DB_PASS" ]; then
+              DB_PASS=$(openssl rand -hex 16)
+            fi
+            sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
+            DO \$\$
+            BEGIN
+              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
+                CREATE ROLE $DB_USER LOGIN PASSWORD '$DB_PASS';
+              ELSE
+                ALTER ROLE $DB_USER WITH LOGIN PASSWORD '$DB_PASS';
+              END IF;
+            END
+            \$\$;
+            SELECT 'CREATE DATABASE $DB_NAME OWNER $DB_USER'
+            WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
+            GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
+            SQL
+
+            # ── Persist the API env file (only the RPC/address values change
+            #    across runs; the DB password is generated once and kept) ──
+            cat > "$API_ENV_FILE" <<ENVEOF
+            NODE_ENV=production
+            PORT=$API_PORT
+            DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+            ROBINHOOD_RPC_URL=https://rpc.mainnet.chain.robinhood.com
+            ROBINHOOD_LOCKER_ADDRESS=0x0372a1AE860CDc9357ac6bc8e9F97856b37B80Ed
+            INDEXER_BATCH_SIZE=2000
+            INDEXER_CONFIRMATIONS=12
+            ENVEOF
+            chmod 600 "$API_ENV_FILE"
+            ln -sfn "$API_ENV_FILE" "$RELEASE_DIR/api/.env"
+
+            # ── Build + migrate the API ──────────────────────────────────────
+            cd "$RELEASE_DIR/api"
+            npm ci
+            npm run build
+            npx prisma generate
+            npx prisma migrate deploy
+
+            # ── Build the static frontend (same-origin API via nginx proxy) ─
             cd "$RELEASE_DIR/frontend"
             npm ci
             VITE_API_BASE_URL="https://$DOMAIN" npm run build
             test -f "$RELEASE_DIR/frontend/dist/index.html"
 
-            # ── Activate this release ──────────────────────────────────────
+            # ── Activate this release ────────────────────────────────────────
             ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
-            # Keep only the 5 most recent releases.
             ls -1td "$RELEASE_ROOT"/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf
 
-            # ── nginx: only ever manage our own site file ──────────────────
+            # ── Run the API under pm2, scoped to our own process name ───────
+            if command -v pm2 >/dev/null 2>&1; then
+              pm2 delete genesis-locker-api >/dev/null 2>&1 || true
+              pm2 start "$CURRENT_LINK/api/dist/server.js" --name genesis-locker-api --cwd "$CURRENT_LINK/api" --update-env
+              pm2 save
+            else
+              pkill -f "$APP_ROOT/current/api/dist/server.js" 2>/dev/null || true
+              cd "$CURRENT_LINK/api"
+              set -a; . "$API_ENV_FILE"; set +a
+              nohup node dist/server.js > "$SHARED_ROOT/api.log" 2>&1 &
+            fi
+
+            # Wait for the API to come up before wiring nginx to it.
+            for i in $(seq 1 15); do
+              if curl -fsS "http://127.0.0.1:$API_PORT/health" | grep -q '"ok":true'; then
+                api_ready=1
+                break
+              fi
+              sleep 2
+            done
+            if [ "${api_ready:-0}" != "1" ]; then
+              echo "API failed to become healthy"
+              command -v pm2 >/dev/null 2>&1 && pm2 logs genesis-locker-api --lines 80 --nostream
+              exit 1
+            fi
+
+            # ── Seed chain config + do one indexer pass now ─────────────────
+            cd "$CURRENT_LINK/api"
+            set -a; . "$API_ENV_FILE"; set +a
+            npm run seed
+            npm run index || true
+
+            # ── Cron the indexer (idempotent: replace only our tagged line) ─
+            CRON_TAG="genesis-locker-indexer"
+            CRON_LINE="*/2 * * * * cd $CURRENT_LINK/api && /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run index' >> $SHARED_ROOT/indexer.log 2>&1 # $CRON_TAG"
+            ( crontab -l 2>/dev/null | grep -v "$CRON_TAG" ; echo "$CRON_LINE" ) | crontab -
+
+            # ── nginx: extend our own site file only (SPA + API proxy) ──────
             NGINX_SITE=/etc/nginx/sites-available/genesis-locker
             cat > "$NGINX_SITE" <<NGINX
             server {
@@ -70,6 +158,20 @@ jobs:
 
               root $CURRENT_LINK/frontend/dist;
               index index.html;
+
+              location /v1/ {
+                proxy_pass http://127.0.0.1:$API_PORT;
+                proxy_http_version 1.1;
+                proxy_set_header Host \$host;
+                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto \$scheme;
+              }
+
+              location = /health {
+                proxy_pass http://127.0.0.1:$API_PORT/health;
+                proxy_set_header Host \$host;
+              }
 
               # SPA fallback so client-side routes (/admin, /chains, …) resolve.
               location / {
@@ -90,7 +192,7 @@ jobs:
             nginx -t
             systemctl reload nginx
 
-            # ── TLS for our domain only (separate cert-name) ───────────────
+            # ── TLS for our domain only (separate cert-name) ─────────────────
             if command -v certbot >/dev/null 2>&1; then
               certbot --nginx \
                 --cert-name genesis-locker \
@@ -102,9 +204,8 @@ jobs:
                 --redirect || echo "certbot skipped/failed (DNS or rate limit) — HTTP site is live; re-run later"
             fi
 
-            # ── Smoke test ─────────────────────────────────────────────────
-            # Query HTTPS directly (certbot adds an HTTP->HTTPS redirect), pinning
-            # the domain to localhost so we test this box specifically.
+            # ── Smoke test ────────────────────────────────────────────────────
             sleep 2
             curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" | grep -q "Genesis Locker"
-            echo "Deployed $RELEASE_ID to https://$DOMAIN"
+            curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/v1/chains" | grep -q "Robinhood Chain"
+            echo "Deployed $RELEASE_ID to https://$DOMAIN (frontend + API)"
