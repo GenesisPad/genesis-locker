@@ -1,0 +1,108 @@
+name: Deploy to Contabo
+
+# Deploys the Genesis Locker frontend (static Vite SPA) to
+# https://locker.genesispad.app on the shared Contabo host.
+#
+# SAFETY: this workflow is scoped strictly to genesis-locker. It only ever
+# writes /var/www/genesis-locker and an nginx server block whose server_name is
+# exactly "locker.genesispad.app". It NEVER touches, greps, moves, or deletes
+# any other project's files, nginx configs, or TLS certificates.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-contabo.yml'
+
+concurrency:
+  group: genesis-locker-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          port: ${{ secrets.CONTABO_PORT || '22' }}
+          timeout: 30s
+          command_timeout: 15m
+          script: |
+            set -e
+
+            APP_ROOT=/var/www/genesis-locker
+            RELEASE_ROOT="$APP_ROOT/releases"
+            RELEASE_ID="${{ github.sha }}"
+            RELEASE_DIR="$RELEASE_ROOT/$RELEASE_ID"
+            CURRENT_LINK="$APP_ROOT/current"
+            DOMAIN="locker.genesispad.app"
+            REPO_URL="https://github.com/GenesisPad/genesis-locker.git"
+
+            mkdir -p "$RELEASE_ROOT"
+            rm -rf "$RELEASE_DIR"
+            git clone --depth 1 --branch main "$REPO_URL" "$RELEASE_DIR"
+
+            # ── Build the static frontend ──────────────────────────────────
+            cd "$RELEASE_DIR/frontend"
+            npm ci
+            VITE_API_BASE_URL="https://$DOMAIN" npm run build
+            test -f "$RELEASE_DIR/frontend/dist/index.html"
+
+            # ── Activate this release ──────────────────────────────────────
+            ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
+            # Keep only the 5 most recent releases.
+            ls -1td "$RELEASE_ROOT"/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf
+
+            # ── nginx: only ever manage our own site file ──────────────────
+            NGINX_SITE=/etc/nginx/sites-available/genesis-locker
+            cat > "$NGINX_SITE" <<NGINX
+            server {
+              listen 80;
+              listen [::]:80;
+              server_name $DOMAIN;
+
+              root $CURRENT_LINK/frontend/dist;
+              index index.html;
+
+              # SPA fallback so client-side routes (/admin, /chains, …) resolve.
+              location / {
+                try_files \$uri \$uri/ /index.html;
+              }
+
+              location = /logo.png {
+                try_files \$uri =404;
+                access_log off;
+                expires 7d;
+              }
+            }
+            NGINX
+            ln -sfn "$NGINX_SITE" /etc/nginx/sites-enabled/genesis-locker
+
+            # Validate the whole nginx config; only reload if it passes so a
+            # mistake here can never take down other sites.
+            nginx -t
+            systemctl reload nginx
+
+            # ── TLS for our domain only (separate cert-name) ───────────────
+            if command -v certbot >/dev/null 2>&1; then
+              certbot --nginx \
+                --cert-name genesis-locker \
+                -d "$DOMAIN" \
+                --non-interactive \
+                --agree-tos \
+                --register-unsafely-without-email \
+                --keep-until-expiring \
+                --redirect || echo "certbot skipped/failed (DNS or rate limit) — HTTP site is live; re-run later"
+            fi
+
+            # ── Smoke test ─────────────────────────────────────────────────
+            sleep 2
+            curl -fsS -H "Host: $DOMAIN" "http://127.0.0.1/" | grep -q "Genesis Locker"
+            echo "Deployed $RELEASE_ID to https://$DOMAIN"
