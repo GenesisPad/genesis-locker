@@ -171,6 +171,10 @@ jobs:
             set -a; . "$API_ENV_FILE"; set +a
             npm run seed
             npm run index || true
+            # Re-derive every already-indexed asset's metadata/tvl/lockedPercentage
+            # against the current code, so a metadata/pricing bugfix self-heals
+            # existing DB rows on the next deploy instead of only affecting new locks.
+            npm run backfill || true
 
             # ── Cron the indexer (idempotent: replace only our tagged line) ─
             CRON_TAG="genesis-locker-indexer"
