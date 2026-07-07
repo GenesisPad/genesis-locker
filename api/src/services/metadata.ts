@@ -7,11 +7,21 @@ import { getNativeUsdPrice } from "./nativePrice.js";
 
 const mintSelectors = ["40c10f19", "6a627842"];
 const blacklistSelectors = ["f9f92be4", "4ef4c3e1", "8f32d59b", "c4d66de8"];
-const taxSelectors = ["2d0b93d2", "f2fde38b", "8f4ffcb1", "a9059cbb"];
 
 function codeContainsAny(code: string, selectors: string[]) {
   const lower = code.toLowerCase();
   return selectors.some((selector) => lower.includes(selector));
+}
+
+// There is no reliable way to detect an actual buy/sell tax percentage from
+// bytecode alone - the previous selector list included transfer(address,
+// uint256) (0xa9059cbb, present on every ERC20) and transferOwnership
+// (0xf2fde38b, present on every Ownable contract), which meant every single
+// token was flagged "High Tax Risk" regardless of its real tax. Rather than
+// guess, this always returns false until a real detection method (e.g.
+// simulating a buy+sell through the token's actual pool) is implemented.
+function hasHighTaxRisk(_code: string) {
+  return false;
 }
 
 export async function syncContractMetadata(chainId: number, contractAddress: string, provider: JsonRpcProvider) {
@@ -69,7 +79,7 @@ export async function syncAssetMetadata(chainId: number, assetAddress: string, a
       decimals: decimals === null ? null : Number(decimals),
       totalSupply: totalSupply === null ? null : String(totalSupply),
       hasMintRisk: codeContainsAny(code, mintSelectors),
-      hasHighTaxRisk: codeContainsAny(code, taxSelectors),
+      hasHighTaxRisk: hasHighTaxRisk(code),
       hasBlacklistRisk: codeContainsAny(code, blacklistSelectors)
     },
     update: {
@@ -78,7 +88,7 @@ export async function syncAssetMetadata(chainId: number, assetAddress: string, a
       decimals: decimals === null ? undefined : Number(decimals),
       totalSupply: totalSupply === null ? undefined : String(totalSupply),
       hasMintRisk: codeContainsAny(code, mintSelectors),
-      hasHighTaxRisk: codeContainsAny(code, taxSelectors),
+      hasHighTaxRisk: hasHighTaxRisk(code),
       hasBlacklistRisk: codeContainsAny(code, blacklistSelectors)
     }
   });
@@ -230,25 +240,28 @@ async function priceByReserves(
 export async function refreshAssetCalculations(chainId: number, assetAddress: string) {
   const address = assetAddress.toLowerCase();
   const locks = await db.lock.findMany({ where: { chainId, assetAddress: address } });
-  const remaining = locks.reduce((sum, lock) => sum + (BigInt(lock.amount) - BigInt(lock.withdrawnAmount)), 0n);
   const token = await db.token.findUnique({ where: { chainId_address: { chainId, address } } });
   const pair = await db.pair.findUnique({ where: { chainId_address: { chainId, address } } });
   const totalSupply = BigInt(pair?.totalSupply || token?.totalSupply || "0");
-  const lockedPercentage = totalSupply > 0n ? Number((remaining * 100_000n) / totalSupply) / 1000 : null;
 
-  let tvlUsd: number | null = null;
-  if (pair?.reserveUsd && totalSupply > 0n) {
-    tvlUsd = (Number(remaining) / Number(totalSupply)) * Number(pair.reserveUsd);
-  } else if (token?.priceUsd) {
-    const decimals = token.decimals ?? 18;
-    tvlUsd = (Number(remaining) / 10 ** decimals) * Number(token.priceUsd);
-  }
+  // Each lock gets its OWN share of supply/value, not the asset's combined
+  // total repeated across every row - a wallet holding two separate locks
+  // of 1% and 35% of supply should show 1% and 35%, not 36% on both.
+  for (const lock of locks) {
+    const remaining = BigInt(lock.amount) - BigInt(lock.withdrawnAmount);
+    const lockedPercentage = totalSupply > 0n ? Number((remaining * 100_000n) / totalSupply) / 1000 : null;
 
-  await db.lock.updateMany({
-    where: { chainId, assetAddress: address },
-    data: {
-      lockedPercentage,
-      tvlUsd
+    let tvlUsd: number | null = null;
+    if (pair?.reserveUsd && totalSupply > 0n) {
+      tvlUsd = (Number(remaining) / Number(totalSupply)) * Number(pair.reserveUsd);
+    } else if (token?.priceUsd) {
+      const decimals = token.decimals ?? 18;
+      tvlUsd = (Number(remaining) / 10 ** decimals) * Number(token.priceUsd);
     }
-  });
+
+    await db.lock.update({
+      where: { id: lock.id },
+      data: { lockedPercentage, tvlUsd }
+    });
+  }
 }

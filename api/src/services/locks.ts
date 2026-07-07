@@ -49,15 +49,17 @@ function claimableAmount(lock: Pick<Lock, "amount" | "withdrawnAmount" | "isPerm
   return vestedAmount > withdrawn ? vestedAmount - withdrawn : 0n;
 }
 
-function buildWarnings(lock: LockWithRelations, contractRenounced: boolean) {
+// totalAssetLockedPercentage is the SUM of every lock's own share of supply
+// for this asset (not this one lock's share alone) - "is enough of the
+// supply locked" is a question about the asset as a whole, not about how
+// this particular lock's slice compares to the threshold on its own.
+function buildWarnings(lock: LockWithRelations, totalAssetLockedPercentage: number | undefined) {
   const warnings: string[] = [];
   if (lock.endTime && lock.createdAt) {
     const durationDays = (lock.endTime.getTime() - lock.startTime.getTime()) / (1000 * 60 * 60 * 24);
     if (durationDays < shortLockDays) warnings.push("Short Lock");
   }
-  const lockedPercentage = lock.lockedPercentage ? Number(lock.lockedPercentage) : undefined;
-  if (lockedPercentage !== undefined && lockedPercentage < lowLockPercentageThreshold) warnings.push("Low Lock Percentage");
-  if (!contractRenounced) warnings.push("Contract Ownership Not Renounced");
+  if (totalAssetLockedPercentage !== undefined && totalAssetLockedPercentage < lowLockPercentageThreshold) warnings.push("Low Lock Percentage");
   if (lock.token?.hasMintRisk) warnings.push("Mint Risk");
   if (lock.token?.hasHighTaxRisk) warnings.push("High Tax Risk");
   if (lock.token?.hasBlacklistRisk) warnings.push("Blacklist Risk");
@@ -184,7 +186,11 @@ export async function getAssetStatus(chainId: number, assetAddress?: string, loc
   ]);
 
   const first = locks[0];
-  const contractRenounced = contract?.isRenounced ?? false;
+  // Sum every lock's own share of supply, not just the most recent lock's -
+  // an asset with three separate 20% locks has 60% locked in total, not 20%.
+  const totalLockedPercentage = locks.length > 0
+    ? locks.reduce((sum, lock) => sum + Number(lock.lockedPercentage || 0), 0)
+    : undefined;
   return {
     chainId,
     chain: chain?.name ?? chains.find((chain) => chain.id === chainId)?.name ?? null,
@@ -193,9 +199,9 @@ export async function getAssetStatus(chainId: number, assetAddress?: string, loc
     isLocked: locks.length > 0,
     hasPermanentLock: locks.some((lock) => lock.isPermanent),
     totalLockedAmount: locks.reduce((sum, lock) => sum + remainingAmount(lock), 0n).toString(),
-    lockedPercentage: first?.lockedPercentage?.toString() || null,
+    lockedPercentage: totalLockedPercentage !== undefined ? totalLockedPercentage.toString() : null,
     longestUnlockDate: dateToIso(first?.endTime),
-    warnings: [...new Set(locks.flatMap((lock) => buildWarnings(lock, contractRenounced)))],
+    warnings: [...new Set(locks.flatMap((lock) => buildWarnings(lock, totalLockedPercentage)))],
     badges: [...new Set(locks.flatMap((lock) => badgesFor(lock)))],
     contract: contract ? {
       address: contract.address,

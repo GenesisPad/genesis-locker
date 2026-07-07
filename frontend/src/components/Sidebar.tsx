@@ -108,10 +108,10 @@ export function Sidebar({ className = '', onNavigate }: { className?: string; on
         </div>
 
         <div className="sidebar-socials">
-          <a href="#" className="social-btn" aria-label="X (Twitter)" title="X (Twitter)">
+          <a href="https://x.com/GenesisPad_" target="_blank" rel="noreferrer" className="social-btn" aria-label="X (Twitter)" title="X (Twitter)">
             <XIcon size={15} />
           </a>
-          <a href="#" className="social-btn" aria-label="Telegram" title="Telegram">
+          <a href="https://t.me/GenesisPad_RH" target="_blank" rel="noreferrer" className="social-btn" aria-label="Telegram" title="Telegram">
             <TelegramIcon size={15} />
           </a>
           <a href="https://github.com/GenesisPad/genesis-locker" target="_blank" rel="noreferrer" className="social-btn" aria-label="GitHub" title="GitHub">

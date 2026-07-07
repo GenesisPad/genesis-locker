@@ -96,14 +96,28 @@ export async function createLockTransaction(input: {
   return locker.permanentLock(created.args.lockId)
 }
 
-export async function manageLockTransaction(contractAddress: string, action: 'withdraw' | 'permanentLock' | 'extendLock' | 'increaseLockAmount' | 'transferLockOwnership', lockId: string, value?: string | number) {
+export async function manageLockTransaction(
+  contractAddress: string,
+  action: 'withdraw' | 'permanentLock' | 'extendLock' | 'increaseLockAmount' | 'transferLockOwnership',
+  lockId: string,
+  value?: string | number,
+  // Only needed for increaseLockAmount: the contract pulls tokens via
+  // transferFrom, so it needs the asset address (to approve) and its
+  // decimals (the input is a human amount like "100", not base units).
+  tokenInfo?: { tokenAddress: string; decimals: number }
+) {
   const { signer } = await connectWallet()
   const locker = new Contract(contractAddress, GENESIS_LOCKER_ABI, signer)
   if (action === 'withdraw') return locker.withdraw(lockId)
   if (action === 'permanentLock') return locker.permanentLock(lockId)
   if (action === 'extendLock') return locker.extendLock(lockId, value)
   if (action === 'transferLockOwnership') return locker.transferLockOwnership(lockId, value)
-  return locker.increaseLockAmount(lockId, value)
+
+  if (!tokenInfo) throw new Error('Missing token info for increaseLockAmount')
+  const amount = parseUnits(String(value ?? '0'), tokenInfo.decimals)
+  const token = new Contract(tokenInfo.tokenAddress, ERC20_ABI, signer)
+  await (await token.approve(contractAddress, amount)).wait()
+  return locker.increaseLockAmount(lockId, amount)
 }
 
 export { formatEther }

@@ -56,10 +56,20 @@ export function LockDetail() {
     if (!lock) return
     try {
       setError('')
-      setActionStatus('Submitting transaction...')
+      if (action === 'extendLock' && !actionValue) throw new Error('Enter a new unlock date first')
+      if (action === 'transferLockOwnership' && !actionValue) throw new Error('Enter the new owner address first')
+      if (action === 'increaseLockAmount' && !actionValue) throw new Error('Enter an amount to add first')
+
       let value: string | number | undefined = actionValue
-      if (action === 'extendLock') value = Math.floor(new Date(`${actionValue}T00:00:00`).getTime() / 1000)
-      const tx = await manageLockTransaction(lock.contractAddress, action, lock.lockId, value)
+      if (action === 'extendLock') {
+        const parsed = Math.floor(new Date(`${actionValue}T00:00:00`).getTime() / 1000)
+        if (!Number.isFinite(parsed)) throw new Error('Invalid date - use YYYY-MM-DD')
+        value = parsed
+      }
+
+      setActionStatus('Submitting transaction...')
+      const tokenInfo = action === 'increaseLockAmount' ? { tokenAddress: lock.assetAddress, decimals: lock.token?.decimals ?? 18 } : undefined
+      const tx = await manageLockTransaction(lock.contractAddress, action, lock.lockId, value, tokenInfo)
       setActionStatus('Waiting for confirmation...')
       await tx.wait()
       setActionStatus('Transaction confirmed. Run the indexer to refresh this proof page.')
@@ -80,12 +90,14 @@ export function LockDetail() {
 
       <motion.div className={`verified-banner ${lock.assetType === 'lp' ? 'lp-verified' : 'token-verified'}`} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <CheckCircle2 size={22} />
-        {lock.assetType === 'lp' ? 'LP Lock Verified' : 'Token Lock Verified'}
-        <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, opacity: 0.7 }}>Lock #{lock.lockId}</span>
+        <div>
+          <div>{lock.assetType === 'lp' ? 'LP Lock Verified' : 'Token Lock Verified'}</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, opacity: 0.85, marginTop: 2 }}>
+            {formatAmount(lock.amount, lock.token?.decimals ?? 18)} {lock.token?.symbol || shortAddress(lock.assetAddress)} · {lock.isPermanent ? 'Permanent' : `Unlocks ${formatDate(lock.unlockDate)}`}
+          </div>
+        </div>
+        <span style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 800, opacity: 0.95, flexShrink: 0 }}>Lock #{lock.lockId}</span>
       </motion.div>
-
-      {error && <div className="form-alert error">{error}</div>}
-      {actionStatus && <div className="form-alert">{actionStatus}</div>}
 
       {metadata && (metadata.logo || metadata.banner || metadata.description || metadata.website || metadata.twitter || metadata.telegram || metadata.discord) && (
         <motion.div
@@ -181,10 +193,16 @@ export function LockDetail() {
 
         <div className="detail-card" style={{ marginBottom: 16 }}>
           <div className="detail-card-label">Wallet Actions</div>
+          <div style={{ fontSize: 11.5, color: 'var(--dim)', marginBottom: 10 }}>
+            Only the lock owner ({shortAddress(lock.owner)}) can extend, add amount, permanently lock, or transfer. Only the beneficiary ({shortAddress(lock.beneficiary)}) can withdraw claimable tokens.
+          </div>
+          {(error || actionStatus) && (
+            <div className={`form-alert${error ? ' error' : ''}`} style={{ marginBottom: 12 }}>{error || actionStatus}</div>
+          )}
           <div className="lock-badges-row" style={{ marginBottom: 12 }}>
             <button className="btn-secondary" onClick={() => runAction('withdraw')}>Withdraw Claimable</button>
             <button className="btn-secondary" onClick={() => runAction('permanentLock')}>Permanent Lock</button>
-            <input className="action-input" value={actionValue} onChange={e => setActionValue(e.target.value)} placeholder="Date, amount, or new owner" />
+            <input className="action-input" value={actionValue} onChange={e => setActionValue(e.target.value)} placeholder="Date (YYYY-MM-DD), amount, or new owner" />
             <button className="btn-secondary" onClick={() => runAction('extendLock')}>Extend</button>
             <button className="btn-secondary" onClick={() => runAction('increaseLockAmount')}>Add Amount</button>
             <button className="btn-secondary" onClick={() => runAction('transferLockOwnership')}>Transfer</button>
