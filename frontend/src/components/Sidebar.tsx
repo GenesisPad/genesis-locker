@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home, Search, Lock, LayoutDashboard,
   BarChart2, Link2, Code2, BookOpen,
-  Github, HandHeart, CalendarClock, Trophy, Vote,
+  Github, CalendarClock, Trophy, Vote,
 } from 'lucide-react'
 
 // ── Brand-accurate SVG icons ────────────────────────────────────────────────
@@ -43,8 +43,7 @@ const navSections = [
   {
     label: 'Community',
     items: [
-      { to: '/community-grants', label: 'Community Grants', icon: HandHeart },
-      { to: '/dao',              label: 'DAO Governance',   icon: Vote,     badge: 'SOON' },
+      { to: '/dao', label: 'DAO Governance', icon: Vote, badge: 'SOON' },
     ],
   },
   {
