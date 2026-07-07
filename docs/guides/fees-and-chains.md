@@ -2,12 +2,12 @@
 
 Genesis Locker deploys a separate locker contract per chain with configurable creation fees. Fees are set at deployment and can be changed only by the contract owner within the published maximum fee cap.
 
-| Chain | Fee |
-| --- | --- |
-| Robinhood Chain (primary) | 0.01 ETH |
-| Ethereum | 0.01 ETH |
-| Base | 0.01 ETH |
-| BSC | 0.03 BNB |
+| Chain | Fee | Max fee cap |
+| --- | --- | --- |
+| Robinhood Chain (primary) | 0.01 ETH | 0.1 ETH |
+| Ethereum | 0.01 ETH | 0.1 ETH |
+| Base | 0.01 ETH | 0.1 ETH |
+| BSC | 0.03 BNB | 0.3 BNB |
 
 Collected fees are split 20% to the founder recipient and 80% to the community multisig recipient. The founder share is capped at deployment so ownership cannot later increase it above the published maximum.
 

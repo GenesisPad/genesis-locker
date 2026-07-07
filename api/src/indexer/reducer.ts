@@ -149,7 +149,8 @@ export async function applyGenesisLockerEvent(
     });
     await db.lock.update({
       where: { chainId_lockId: { chainId, lockId } },
-      data: { ownerAddress: newOwner }
+      // Owner and beneficiary move together on-chain, so mirror both here.
+      data: { ownerAddress: newOwner, beneficiaryAddress: newOwner }
     });
   }
 

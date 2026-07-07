@@ -2,13 +2,14 @@
 
 Genesis Locker charges a native-token fee when a user creates a lock.
 
-Initial fees:
+Initial fees (and the maximum cap the owner can never exceed, fixed at deployment):
 
-| Chain | Creation fee |
-| --- | --- |
-| Ethereum | 0.01 ETH |
-| Base | 0.01 ETH |
-| BSC | 0.03 BNB |
+| Chain | Creation fee | Max fee cap |
+| --- | --- | --- |
+| Robinhood Chain (primary) | 0.01 ETH | 0.1 ETH |
+| Ethereum | 0.01 ETH | 0.1 ETH |
+| Base | 0.01 ETH | 0.1 ETH |
+| BSC | 0.03 BNB | 0.3 BNB |
 
 Fee distribution:
 

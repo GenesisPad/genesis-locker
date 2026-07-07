@@ -23,6 +23,7 @@ import { BadgeEmbed } from './pages/BadgeEmbed'
 import { Projects } from './pages/Projects'
 import { ProjectDetail } from './pages/ProjectDetail'
 import { DAO } from './pages/DAO'
+import { Admin } from './pages/Admin'
 import { wagmiConfig } from './lib/wagmi'
 import '@rainbow-me/rainbowkit/styles.css'
 import './styles.css'
@@ -63,6 +64,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="dao" element={<DAO />} />
               <Route path="api" element={<APIPage />} />
               <Route path="docs" element={<Docs />} />
+              <Route path="admin" element={<Admin />} />
             </Route>
           </Routes>
         </BrowserRouter>

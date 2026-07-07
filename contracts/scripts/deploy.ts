@@ -1,15 +1,17 @@
 import { ethers, network } from "hardhat";
 
 const FEES: Record<string, bigint> = {
+  robinhood: ethers.parseEther("0.01"),
   ethereum: ethers.parseEther("0.01"),
   base: ethers.parseEther("0.01"),
   bsc: ethers.parseEther("0.03")
 };
 
 const MAX_FEES: Record<string, bigint> = {
-  ethereum: ethers.parseEther("0.05"),
-  base: ethers.parseEther("0.05"),
-  bsc: ethers.parseEther("0.15")
+  robinhood: ethers.parseEther("0.1"),
+  ethereum: ethers.parseEther("0.1"),
+  base: ethers.parseEther("0.1"),
+  bsc: ethers.parseEther("0.3")
 };
 
 async function main() {

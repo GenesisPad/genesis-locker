@@ -73,6 +73,8 @@ contract GenesisLocker is Ownable, ReentrancyGuard {
     event CreationFeeUpdated(uint256 oldFee, uint256 newFee);
     event FeeRecipientsUpdated(address indexed founderRecipient, address indexed communityRecipient);
     event FeeSplitUpdated(uint16 oldFounderShareBps, uint16 newFounderShareBps);
+    event StuckETHRecovered(address indexed to, uint256 amount);
+    event StuckTokenRecovered(address indexed token, address indexed to, uint256 amount);
 
     modifier lockExists(uint256 lockId) {
         require(locks[lockId].lockId != 0, "Lock does not exist");
@@ -159,7 +161,7 @@ contract GenesisLocker is Ownable, ReentrancyGuard {
 
     function withdraw(uint256 lockId) external nonReentrant lockExists(lockId) {
         Lock storage lock = locks[lockId];
-        require(msg.sender == lock.owner || msg.sender == lock.beneficiary, "Not allowed");
+        require(msg.sender == lock.beneficiary, "Not beneficiary");
         require(!lock.isPermanent, "Permanently locked");
 
         uint256 claimable = getClaimableAmount(lockId);
@@ -207,7 +209,10 @@ contract GenesisLocker is Ownable, ReentrancyGuard {
         require(newOwner != address(0), "Zero owner");
         Lock storage lock = locks[lockId];
         address previousOwner = lock.owner;
+        // Owner and beneficiary always move together so control and the right to
+        // receive funds can never split between two parties.
         lock.owner = newOwner;
+        lock.beneficiary = newOwner;
         userLocks[newOwner].push(lockId);
 
         emit LockOwnershipTransferred(lockId, previousOwner, newOwner);
@@ -242,6 +247,45 @@ contract GenesisLocker is Ownable, ReentrancyGuard {
         uint16 oldFounderShareBps = founderFeeShareBps;
         founderFeeShareBps = newFounderFeeShareBps;
         emit FeeSplitUpdated(oldFounderShareBps, newFounderFeeShareBps);
+    }
+
+    /// @notice Recover ETH that was force-sent to the contract (e.g. via selfdestruct).
+    /// @dev Anyone may trigger this, but the ETH always goes to the contract owner.
+    ///      Creation fees are distributed in full during lock creation, so the contract
+    ///      holds no ETH in normal operation — any balance here is stuck by definition.
+    ///      There is no on-chain record of who force-sent ETH, so it cannot be refunded
+    ///      to an "original sender"; routing to the owner is the only verifiable path.
+    function withdrawStuckETH() external nonReentrant {
+        address to = owner();
+        // If ownership has been renounced, block recovery rather than burning the
+        // funds by sending them to the zero address.
+        require(to != address(0), "Ownership renounced");
+        uint256 amount = address(this).balance;
+        require(amount > 0, "No stuck ETH");
+        (bool sent, ) = payable(to).call{value: amount}("");
+        require(sent, "ETH transfer failed");
+        emit StuckETHRecovered(to, amount);
+    }
+
+    /// @notice Recover tokens accidentally sent to the contract on top of locked balances.
+    /// @dev Anyone may trigger this, but the tokens always go to the contract owner.
+    ///      Only the surplus above totalLockedByToken[token] can ever be moved, so every
+    ///      locked position stays fully backed and locked user funds are never at risk.
+    ///      A standard ERC20 transfer leaves no record of the sender, so stuck tokens
+    ///      cannot be refunded to an "original sender"; routing to the owner is the only
+    ///      verifiable path.
+    function withdrawStuckToken(address token) external nonReentrant {
+        require(token != address(0), "Zero token");
+        address to = owner();
+        // If ownership has been renounced, block recovery rather than burning the
+        // surplus by sending it to the zero address.
+        require(to != address(0), "Ownership renounced");
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        uint256 locked = totalLockedByToken[token];
+        require(balance > locked, "No stuck tokens");
+        uint256 amount = balance - locked;
+        IERC20(token).safeTransfer(to, amount);
+        emit StuckTokenRecovered(token, to, amount);
     }
 
     function totalLocks() external view returns (uint256) {
@@ -317,10 +361,12 @@ contract GenesisLocker is Ownable, ReentrancyGuard {
         require(amount > 0, "Zero amount");
 
         lockId = nextLockId++;
+        // The beneficiary is the owner: msg.sender only funds the lock (pays the
+        // fee and supplies the tokens) and retains no control or withdrawal rights.
         locks[lockId] = Lock({
             lockId: lockId,
             token: token,
-            owner: msg.sender,
+            owner: beneficiary,
             beneficiary: beneficiary,
             amount: amount,
             withdrawnAmount: 0,
@@ -335,7 +381,7 @@ contract GenesisLocker is Ownable, ReentrancyGuard {
             metadataURI: metadataURI
         });
 
-        userLocks[msg.sender].push(lockId);
+        userLocks[beneficiary].push(lockId);
         tokenLocks[token].push(lockId);
         totalLockedByToken[token] += amount;
         activeLocks += 1;
@@ -348,7 +394,7 @@ contract GenesisLocker is Ownable, ReentrancyGuard {
         emit LockCreated(
             lockId,
             token,
-            msg.sender,
+            beneficiary,
             beneficiary,
             amount,
             block.timestamp,

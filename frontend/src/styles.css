@@ -108,15 +108,11 @@ img, video, canvas, svg { max-width: 100%; }
 }
 
 .sidebar-logomark {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #a88038 0%, #d9ad4a 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 14px rgba(217, 173, 74, 0.45);
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
   flex-shrink: 0;
+  filter: drop-shadow(0 0 10px rgba(217, 173, 74, 0.4));
 }
 
 .sidebar-brand {

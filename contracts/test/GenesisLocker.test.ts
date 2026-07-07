@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { time, setBalance } from "@nomicfoundation/hardhat-network-helpers";
 
 const FEE = ethers.parseEther("0.01");
 const MAX_FEE = ethers.parseEther("0.05");
@@ -14,6 +14,9 @@ describe("GenesisLocker", () => {
     const Token = await ethers.getContractFactory("TestToken");
     const token = await Token.deploy();
     await token.transfer(user.address, ethers.parseEther("1000"));
+    // The beneficiary is the lock owner in this model, so it needs its own
+    // balance + approval to top up locks it owns.
+    await token.transfer(beneficiary.address, ethers.parseEther("1000"));
 
     const Locker = await ethers.getContractFactory("GenesisLocker");
     const locker = await Locker.deploy(
@@ -27,6 +30,7 @@ describe("GenesisLocker", () => {
     );
 
     await token.connect(user).approve(await locker.getAddress(), ethers.MaxUint256);
+    await token.connect(beneficiary).approve(await locker.getAddress(), ethers.MaxUint256);
     return { owner, user, beneficiary, nextOwner, founder, community, token, locker };
   }
 
@@ -96,13 +100,29 @@ describe("GenesisLocker", () => {
     ).to.be.revertedWith("Invalid fee");
   });
 
+  it("makes the beneficiary the owner and denies the creator any control", async () => {
+    const { user, beneficiary, token, locker } = await deployFixture();
+    const unlockTime = (await time.latest()) + 8 * DAY;
+    await locker.connect(user).createCliffLock(await token.getAddress(), beneficiary.address, ethers.parseEther("10"), unlockTime, false, "", { value: FEE });
+
+    const lock = await locker.getLock(1);
+    expect(lock.owner).to.equal(beneficiary.address);
+    expect(lock.beneficiary).to.equal(beneficiary.address);
+
+    // The creator (funder) retains no owner powers and cannot withdraw.
+    await expect(locker.connect(user).extendLock(1, unlockTime + DAY)).to.be.revertedWith("Not lock owner");
+    await expect(locker.connect(user).permanentLock(1)).to.be.revertedWith("Not lock owner");
+    await time.increaseTo(unlockTime + 1);
+    await expect(locker.connect(user).withdraw(1)).to.be.revertedWith("Not beneficiary");
+  });
+
   it("only allows extending lock duration", async () => {
     const { user, beneficiary, token, locker } = await deployFixture();
     const unlockTime = (await time.latest()) + 8 * DAY;
     await locker.connect(user).createCliffLock(await token.getAddress(), beneficiary.address, ethers.parseEther("10"), unlockTime, false, "", { value: FEE });
 
-    await expect(locker.connect(user).extendLock(1, unlockTime - DAY)).to.be.revertedWith("Can only extend");
-    await expect(locker.connect(user).extendLock(1, unlockTime + DAY)).to.emit(locker, "LockExtended");
+    await expect(locker.connect(beneficiary).extendLock(1, unlockTime - DAY)).to.be.revertedWith("Can only extend");
+    await expect(locker.connect(beneficiary).extendLock(1, unlockTime + DAY)).to.emit(locker, "LockExtended");
 
     const lock = await locker.getLock(1);
     expect(lock.endTime).to.equal(unlockTime + DAY);
@@ -114,7 +134,7 @@ describe("GenesisLocker", () => {
     const unlockTime = (await time.latest()) + 8 * DAY;
     await locker.connect(user).createCliffLock(await token.getAddress(), beneficiary.address, ethers.parseEther("10"), unlockTime, false, "", { value: FEE });
 
-    await expect(locker.connect(user).increaseLockAmount(1, ethers.parseEther("5"))).to.emit(locker, "LockAmountIncreased");
+    await expect(locker.connect(beneficiary).increaseLockAmount(1, ethers.parseEther("5"))).to.emit(locker, "LockAmountIncreased");
     const lock = await locker.getLock(1);
     expect(lock.amount).to.equal(ethers.parseEther("15"));
   });
@@ -126,8 +146,9 @@ describe("GenesisLocker", () => {
 
     await time.increaseTo(unlockTime + 1);
 
+    const balanceBefore = await token.balanceOf(beneficiary.address);
     await expect(locker.connect(beneficiary).withdraw(1)).to.emit(locker, "Withdrawn");
-    expect(await token.balanceOf(beneficiary.address)).to.equal(ethers.parseEther("10"));
+    expect(await token.balanceOf(beneficiary.address)).to.equal(balanceBefore + ethers.parseEther("10"));
   });
 
   it("supports vesting claim calculations", async () => {
@@ -149,11 +170,73 @@ describe("GenesisLocker", () => {
     const unlockTime = (await time.latest()) + 8 * DAY;
     await locker.connect(user).createCliffLock(await token.getAddress(), beneficiary.address, ethers.parseEther("10"), unlockTime, true, "", { value: FEE });
 
-    await expect(locker.connect(user).transferLockOwnership(1, nextOwner.address)).to.emit(locker, "LockOwnershipTransferred");
+    // The beneficiary owns the lock; transfer moves both owner and beneficiary
+    // to nextOwner so they stay unified.
+    await expect(locker.connect(beneficiary).transferLockOwnership(1, nextOwner.address)).to.emit(locker, "LockOwnershipTransferred");
+    const moved = await locker.getLock(1);
+    expect(moved.owner).to.equal(nextOwner.address);
+    expect(moved.beneficiary).to.equal(nextOwner.address);
+
     await expect(locker.connect(nextOwner).permanentLock(1)).to.emit(locker, "LockPermanentlyLocked");
 
     await time.increaseTo(unlockTime + 1);
-    await expect(locker.connect(beneficiary).withdraw(1)).to.be.revertedWith("Permanently locked");
+    // The previous beneficiary no longer has any rights, and the new owner is
+    // blocked by the permanent lock.
+    await expect(locker.connect(beneficiary).withdraw(1)).to.be.revertedWith("Not beneficiary");
+    await expect(locker.connect(nextOwner).withdraw(1)).to.be.revertedWith("Permanently locked");
     expect(await locker.totalPermanentLocks()).to.equal(1);
+  });
+
+  it("recovers only surplus tokens (never locked funds) and stuck ETH, always to the owner", async () => {
+    const { owner, user, beneficiary, nextOwner, token, locker } = await deployFixture();
+    const lockerAddr = await locker.getAddress();
+    const tokenAddr = await token.getAddress();
+    const unlockTime = (await time.latest()) + 8 * DAY;
+    await locker.connect(user).createCliffLock(tokenAddr, beneficiary.address, ethers.parseEther("10"), unlockTime, false, "", { value: FEE });
+
+    // Someone accidentally transfers extra tokens straight to the contract.
+    await token.connect(user).transfer(lockerAddr, ethers.parseEther("3"));
+
+    // A non-owner can trigger recovery, but the surplus goes to the owner and the
+    // locked 10 tokens are never touched.
+    const ownerTokenBefore = await token.balanceOf(owner.address);
+    await expect(locker.connect(nextOwner).withdrawStuckToken(tokenAddr))
+      .to.emit(locker, "StuckTokenRecovered").withArgs(tokenAddr, owner.address, ethers.parseEther("3"));
+    expect(await token.balanceOf(owner.address)).to.equal(ownerTokenBefore + ethers.parseEther("3"));
+    expect(await token.balanceOf(lockerAddr)).to.equal(ethers.parseEther("10"));
+    expect(await locker.totalLockedByToken(tokenAddr)).to.equal(ethers.parseEther("10"));
+
+    // With no surplus left, recovery reverts — locked funds cannot be drained.
+    await expect(locker.connect(nextOwner).withdrawStuckToken(tokenAddr)).to.be.revertedWith("No stuck tokens");
+
+    // The beneficiary can still withdraw the full locked amount afterwards.
+    await time.increaseTo(unlockTime + 1);
+    const benBefore = await token.balanceOf(beneficiary.address);
+    await locker.connect(beneficiary).withdraw(1);
+    expect(await token.balanceOf(beneficiary.address)).to.equal(benBefore + ethers.parseEther("10"));
+
+    // Stuck ETH (force-sent) is recoverable to the owner by anyone.
+    await setBalance(lockerAddr, ethers.parseEther("1"));
+    const ownerEthBefore = await ethers.provider.getBalance(owner.address);
+    await expect(locker.connect(nextOwner).withdrawStuckETH())
+      .to.emit(locker, "StuckETHRecovered").withArgs(owner.address, ethers.parseEther("1"));
+    expect(await ethers.provider.getBalance(owner.address)).to.equal(ownerEthBefore + ethers.parseEther("1"));
+    expect(await ethers.provider.getBalance(lockerAddr)).to.equal(0);
+  });
+
+  it("blocks stuck-fund recovery once ownership is renounced (never burns to the zero address)", async () => {
+    const { owner, user, token, locker } = await deployFixture();
+    const lockerAddr = await locker.getAddress();
+    const tokenAddr = await token.getAddress();
+
+    await token.connect(user).transfer(lockerAddr, ethers.parseEther("3"));
+    await setBalance(lockerAddr, ethers.parseEther("1"));
+
+    await locker.connect(owner).renounceOwnership();
+    expect(await locker.owner()).to.equal(ethers.ZeroAddress);
+
+    // Recovery must revert rather than send funds to the dead address.
+    await expect(locker.connect(user).withdrawStuckToken(tokenAddr)).to.be.revertedWith("Ownership renounced");
+    await expect(locker.connect(user).withdrawStuckETH()).to.be.revertedWith("Ownership renounced");
   });
 });

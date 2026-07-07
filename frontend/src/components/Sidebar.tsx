@@ -2,7 +2,7 @@ import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home, Search, Lock, LayoutDashboard,
-  BarChart2, Link2, Code2, BookOpen, Shield,
+  BarChart2, Link2, Code2, BookOpen,
   Github, HandHeart, CalendarClock, Trophy, Vote,
 } from 'lucide-react'
 
@@ -64,9 +64,7 @@ export function Sidebar({ className = '', onNavigate }: { className?: string; on
   return (
     <aside className={`sidebar${className ? ` ${className}` : ''}`}>
       <div className="sidebar-logo">
-        <div className="sidebar-logomark">
-          <Shield size={16} color="#fff" />
-        </div>
+        <img src="/logo.png" alt="Genesis Locker" className="sidebar-logomark" />
         <div className="sidebar-brand">
           <span className="sidebar-brand-name">GENESIS LOCKER</span>
           <span className="sidebar-brand-tag">Decentralized</span>
