@@ -34,18 +34,32 @@ async function main() {
     maxFounderFeeShareBps
   );
   await locker.waitForDeployment();
+  const lockerAddress = await locker.getAddress();
+
+  // Optionally hand ownership to a dedicated owner (e.g. a multisig) right after
+  // deployment. The deployer holds ownership only for the moment between these
+  // two transactions, so a failed transfer is recoverable by simply retrying.
+  let ownershipTransferredTo: string | null = null;
+  const transferTo = process.env.TRANSFER_OWNERSHIP_TO;
+  if (transferTo && transferTo.toLowerCase() !== deployer.address.toLowerCase()) {
+    const tx = await locker.transferOwnership(transferTo);
+    await tx.wait();
+    ownershipTransferredTo = transferTo;
+  }
 
   console.log(JSON.stringify({
     network: network.name,
     chainId: network.config.chainId,
-    locker: await locker.getAddress(),
+    locker: lockerAddress,
     fee: fee.toString(),
     maxFee: maxFee.toString(),
     founderFeeRecipient,
     communityFeeRecipient,
     founderFeeShareBps,
     maxFounderFeeShareBps,
-    deployer: deployer.address
+    deployer: deployer.address,
+    owner: ownershipTransferredTo ?? deployer.address,
+    ownershipTransferredTo
   }, null, 2));
 }
 

@@ -1,0 +1,15 @@
+{
+  "network": "robinhood",
+  "chainId": 4663,
+  "locker": "0x0372a1AE860CDc9357ac6bc8e9F97856b37B80Ed",
+  "creationFee": "0.01 ETH",
+  "maxCreationFee": "0.1 ETH",
+  "founderFeeRecipient": "0x8CFa84924011b19765136Baea669AC81FE8bB561",
+  "communityFeeRecipient": "0x8CFa84924011b19765136Baea669AC81FE8bB561",
+  "founderFeeShareBps": 2000,
+  "maxFounderFeeShareBps": 2000,
+  "owner": "0x8CFa84924011b19765136Baea669AC81FE8bB561",
+  "deployer": "0xcB67330a24624d5Add4ec95Da522e2adE58310eb",
+  "explorer": "https://robinhoodchain.blockscout.com/address/0x0372a1AE860CDc9357ac6bc8e9F97856b37B80Ed",
+  "deployedAt": "2026-07-07"
+}
