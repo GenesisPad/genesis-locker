@@ -8,7 +8,7 @@ const wagmiChains = CHAIN_CONFIGS.map(c => c.wagmiChain) as [Chain, ...Chain[]]
 
 export const wagmiConfig = getDefaultConfig({
   appName: 'Genesis Locker',
-  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'b54d8e50b3e7e2c91a1d1c8c3a2f9e00',
+  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'd0f8a0df8b52c9cd980a7295ec15dfc2',
   chains: wagmiChains,
   ssr: false,
 })

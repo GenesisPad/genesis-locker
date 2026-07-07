@@ -143,7 +143,7 @@ export async function getChains() {
 }
 
 export async function getGlobalStats() {
-  const [locks, feeStats] = await Promise.all([db.lock.findMany(), db.feeStat.findMany()]);
+  const [locks, feeStats, uniqueLockers] = await Promise.all([db.lock.findMany(), db.feeStat.findMany(), db.wallet.count()]);
   const chainRows = await getChains();
   const byChain = chainRows.map((chain) => {
     const chainLocks = locks.filter((lock) => lock.chainId === chain.id);
@@ -167,6 +167,7 @@ export async function getGlobalStats() {
     totalLpTvl: locks.filter((lock) => lock.assetType === AssetType.LP).reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
     totalTokenTvl: locks.filter((lock) => lock.assetType === AssetType.TOKEN).reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
     totalFeesCollected: feeStats.reduce((sum, fee) => sum + BigInt(fee.amount), 0n).toString(),
+    uniqueLockers,
     byChain
   };
 }

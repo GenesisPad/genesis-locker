@@ -1,4 +1,7 @@
-import { Contract, BrowserProvider, Interface, formatEther, parseUnits } from 'ethers'
+import { Contract, BrowserProvider, JsonRpcSigner, Interface, formatEther, parseUnits } from 'ethers'
+import type { WalletClient } from 'viem'
+import { getAccount, getWalletClient, switchChain as wagmiSwitchChain } from 'wagmi/actions'
+import { wagmiConfig } from './wagmi'
 
 export const GENESIS_LOCKER_ABI = [
   'function creationFee() view returns (uint256)',
@@ -16,31 +19,37 @@ export const ERC20_ABI = [
   'function approve(address spender,uint256 amount) returns (bool)'
 ] as const
 
-declare global {
-  interface Window {
-    ethereum?: any
-  }
+// Converts a wagmi/viem WalletClient into an ethers v6 Signer, bound to
+// whichever connector the user actually picked via the RainbowKit modal.
+// This is the standard wagmi<->ethers v6 adapter — see wagmi's own docs.
+function walletClientToSigner(walletClient: WalletClient) {
+  const { account, chain, transport } = walletClient
+  if (!account || !chain) throw new Error('Wallet client is missing an account or chain')
+  const network = { chainId: chain.id, name: chain.name }
+  const provider = new BrowserProvider(transport, network)
+  return new JsonRpcSigner(provider, account.address)
 }
 
-export async function getBrowserProvider() {
-  if (!window.ethereum) throw new Error('No injected wallet found')
-  return new BrowserProvider(window.ethereum)
-}
-
+/**
+ * Gets the signer for whichever wallet the user connected via the "Connect
+ * Wallet" button (RainbowKit/wagmi) — never reaches for window.ethereum
+ * directly. Reaching for window.ethereum independently is what caused wallet
+ * mismatches when multiple extensions are installed: it can silently point
+ * at a different, inactive provider than the one the user actually picked.
+ */
 export async function connectWallet() {
-  const provider = await getBrowserProvider()
-  const accounts = await provider.send('eth_requestAccounts', [])
-  const signer = await provider.getSigner()
-  const network = await provider.getNetwork()
-  return { provider, signer, address: accounts[0] as string, chainId: Number(network.chainId) }
+  const account = getAccount(wagmiConfig)
+  if (!account.isConnected || !account.address) {
+    throw new Error('Connect your wallet first using the button in the top right')
+  }
+
+  const walletClient = await getWalletClient(wagmiConfig)
+  const signer = walletClientToSigner(walletClient)
+  return { provider: signer.provider as BrowserProvider, signer, address: account.address, chainId: account.chainId! }
 }
 
 export async function switchChain(chainId: number) {
-  if (!window.ethereum) throw new Error('No injected wallet found')
-  await window.ethereum.request({
-    method: 'wallet_switchEthereumChain',
-    params: [{ chainId: `0x${chainId.toString(16)}` }]
-  })
+  await wagmiSwitchChain(wagmiConfig, { chainId })
 }
 
 export async function createLockTransaction(input: {

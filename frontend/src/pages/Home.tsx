@@ -1,115 +1,45 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  TrendingUp, TrendingDown, Search, Lock, Infinity,
+  TrendingUp, Search, Lock, Infinity,
   Layers, Coins, ChevronRight, Lightbulb, ArrowRight,
   Shield, CheckCircle, Users
 } from 'lucide-react'
 import { RiskBadge, RISK_BADGES } from '../components/RiskBadge'
 import { motion } from 'framer-motion'
+import { api, formatUsd, formatAmount, formatDate, type ApiLock, type GlobalStats } from '../lib/api'
+import { getChainById } from '../lib/chains'
 
-/* ---------- Data ---------- */
+/* ---------- Real-data helpers ---------- */
 
-const stats = [
-  {
-    label: 'Total TVL',
-    value: '$128.7M',
-    trend: '+12.45%',
-    up: true,
-    icon: Layers,
-  },
-  {
-    label: 'LP Locks',
-    value: '$93.6M',
-    trend: '+10.21%',
-    up: true,
-    icon: TrendingUp,
-  },
-  {
-    label: 'Token Locks',
-    value: '$35.1M',
-    trend: '+15.27%',
-    up: true,
-    icon: Coins,
-  },
-  {
-    label: 'Total Locks',
-    value: '18,742',
-    trend: '+8.32%',
-    up: true,
-    icon: Lock,
-  },
-  {
-    label: 'Permanent',
-    value: '4,291',
-    trend: '+3.14%',
-    up: true,
-    icon: Infinity,
-  },
-  {
-    label: 'Unique Lockers',
-    value: '3,241',
-    trend: '+5.82%',
-    up: true,
-    icon: Users,
-  },
+type StatDef = { label: string; icon: typeof Layers; value: (s: GlobalStats) => string }
+
+// No historical snapshots exist yet (would need a daily-rollup job), so these
+// show the real current value with no 24h trend rather than a fabricated one.
+const STAT_DEFS: StatDef[] = [
+  { label: 'Total TVL', icon: Layers, value: s => formatUsd(s.totalTvl) },
+  { label: 'LP Locks TVL', icon: TrendingUp, value: s => formatUsd(s.totalLpTvl) },
+  { label: 'Token Locks TVL', icon: Coins, value: s => formatUsd(s.totalTokenTvl) },
+  { label: 'Total Locks', icon: Lock, value: s => (s.totalLocks ?? 0).toLocaleString() },
+  { label: 'Permanent', icon: Infinity, value: s => (s.totalPermanentLocks ?? 0).toLocaleString() },
+  { label: 'Unique Lockers', icon: Users, value: s => (s.uniqueLockers ?? 0).toLocaleString() },
 ]
 
-type LockMode = 'Cliff' | 'Vesting' | 'Permanent'
-type LockType = 'lp' | 'token'
-type LockStatus = 'active' | 'permanent' | 'expired'
-
-interface LockRow {
-  id: number
-  name: string
-  dex: string
-  type: LockType
-  mode: LockMode
-  amount: string
-  amountUsd: string
-  until: string
-  daysLeft: string
-  pct: number
-  status: LockStatus
-  chain: 'eth' | 'bnb' | 'base'
-  colors: { bg: string; text: string }
+function assetLabel(lock: ApiLock) {
+  if (lock.token?.symbol) return lock.token.symbol
+  if (lock.token?.name) return lock.token.name
+  return `${lock.assetAddress.slice(0, 6)}...${lock.assetAddress.slice(-4)}`
 }
 
-const LOCKS: LockRow[] = [
-  {
-    id: 1, name: 'UNI / WETH', dex: 'Uniswap V3', type: 'lp', mode: 'Cliff',
-    amount: '1,250.45 LP', amountUsd: '$2,842,450', until: 'Dec 31, 2026', daysLeft: '344 days left',
-    pct: 78, status: 'active', chain: 'eth', colors: { bg: '#242018', text: '#f1cb73' },
-  },
-  {
-    id: 2, name: 'PEPE', dex: 'Pepe', type: 'token', mode: 'Vesting',
-    amount: '500,000,000', amountUsd: '$1,125,300', until: 'Jun 26, 2027', daysLeft: 'Vesting 12 months',
-    pct: 65, status: 'active', chain: 'eth', colors: { bg: '#0d2300', text: '#4ade80' },
-  },
-  {
-    id: 3, name: 'CAKE / BNB', dex: 'PancakeSwap V2', type: 'lp', mode: 'Cliff',
-    amount: '2,500.00 LP', amountUsd: '$1,875,600', until: 'Jan 01, 2027', daysLeft: '375 days left',
-    pct: 82, status: 'active', chain: 'bnb', colors: { bg: '#1a1000', text: '#fbbf24' },
-  },
-  {
-    id: 4, name: 'DOGE', dex: 'Dogecoin', type: 'token', mode: 'Permanent',
-    amount: '100,000,000', amountUsd: '$943,200', until: 'Permanently', daysLeft: 'Withdrawal Renounced',
-    pct: 100, status: 'permanent', chain: 'eth', colors: { bg: '#1a1000', text: '#f59e0b' },
-  },
-  {
-    id: 5, name: 'USDC / ETH', dex: 'Aerodrome CL', type: 'lp', mode: 'Vesting',
-    amount: '750.00 LP', amountUsd: '$1,245,700', until: 'Mar 10, 2027', daysLeft: 'Vesting 6 months',
-    pct: 61, status: 'active', chain: 'base', colors: { bg: '#001840', text: '#8fd6ac' },
-  },
-]
+function lockStatus(lock: ApiLock): 'permanent' | 'active' | 'withdrawn' {
+  if (lock.isPermanent) return 'permanent'
+  return BigInt(lock.remainingLockedAmount || '0') > 0n ? 'active' : 'withdrawn'
+}
 
-const TRENDING = [
-  { name: 'SHIB / WETH', dex: 'Uniswap V3', tvl: '$4.52M', pct: 89, colors: { bg: '#1a0000', text: '#f87171' } },
-  { name: 'BUSD / BNB', dex: 'PancakeSwap V2', tvl: '$3.21M', pct: 77, colors: { bg: '#1a1000', text: '#fbbf24' } },
-  { name: 'DEGEN', dex: 'Base', tvl: '$2.88M', pct: 64, colors: { bg: '#001230', text: '#8fd6ac' } },
-  { name: 'FLOKI', dex: 'Ethereum', tvl: '$2.15M', pct: 61, colors: { bg: '#1a0d00', text: '#fb923c' } },
-  { name: 'USDT / USDC', dex: 'Uniswap V3', tvl: '$1.94M', pct: 58, colors: { bg: '#001a0d', text: '#4ade80' } },
-]
+function daysUntil(iso: string | null) {
+  if (!iso) return null
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+}
 
 /* ---------- Sub-components ---------- */
 
@@ -231,7 +161,7 @@ function useCountUp(target: string, duration = 1200) {
   return display
 }
 
-function StatCard({ label, value, trend, up, icon: Icon }: typeof stats[0]) {
+function StatCard({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Layers }) {
   const displayed = useCountUp(value)
   return (
     <div className="stat-card">
@@ -240,10 +170,6 @@ function StatCard({ label, value, trend, up, icon: Icon }: typeof stats[0]) {
         <span className="stat-icon"><Icon size={13} /></span>
       </div>
       <div className="stat-value">{displayed}</div>
-      <div className={`stat-trend ${up ? 'up' : 'down'}`}>
-        {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-        {trend} (24h)
-      </div>
     </div>
   )
 }
@@ -259,6 +185,24 @@ function PctFillClass(pct: number) {
 export function Home() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
+  const [stats, setStats] = useState<GlobalStats | null>(null)
+  const [locks, setLocks] = useState<ApiLock[]>([])
+  const [locksLoaded, setLocksLoaded] = useState(false)
+
+  useEffect(() => {
+    api.stats().then(setStats).catch(() => setStats(null))
+    api.locks(50).then(r => setLocks(r.locks)).catch(() => setLocks([])).finally(() => setLocksLoaded(true))
+  }, [])
+
+  const latestLocks = locks.slice(0, 5)
+  const highestValueLocks = [...locks]
+    .filter(l => Number(l.tvlUsd) > 0)
+    .sort((a, b) => Number(b.tvlUsd) - Number(a.tvlUsd))
+    .slice(0, 5)
+  const upcomingUnlocks = locks
+    .filter(l => !l.isPermanent && l.unlockDate && daysUntil(l.unlockDate)! >= 0)
+    .sort((a, b) => new Date(a.unlockDate!).getTime() - new Date(b.unlockDate!).getTime())
+    .slice(0, 3)
 
   return (
     <div>
@@ -330,7 +274,17 @@ export function Home() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4, delay: 0.25 }}
       >
-        {stats.map(s => <StatCard key={s.label} {...s} />)}
+        {stats
+          ? STAT_DEFS.map(s => <StatCard key={s.label} label={s.label} icon={s.icon} value={s.value(stats)} />)
+          : STAT_DEFS.map(s => (
+              <div className="stat-card" key={s.label}>
+                <div className="stat-top">
+                  <span className="stat-label">{s.label}</span>
+                  <span className="stat-icon"><s.icon size={13} /></span>
+                </div>
+                <div className="stat-value">—</div>
+              </div>
+            ))}
       </motion.div>
 
       {/* Search */}
@@ -402,90 +356,95 @@ export function Home() {
                 </tr>
               </thead>
               <tbody>
-                {LOCKS.map(lock => (
-                  <tr key={lock.id} onClick={() => navigate(`/lock/${lock.id}`)}>
-                    <td>
-                      <div className="asset-cell">
-                        <div
-                          className="asset-avatar"
-                          style={{ background: lock.colors.bg, color: lock.colors.text }}
-                        >
-                          {lock.name.slice(0, 2)}
+                {locksLoaded && latestLocks.length === 0 && (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: '28px 0', color: 'var(--dim)' }}>
+                    No locks yet — be the first to lock on Genesis Locker.
+                  </td></tr>
+                )}
+                {latestLocks.map(lock => {
+                  const pct = lock.lockedPercentage ? Number(lock.lockedPercentage) : 0
+                  const status = lockStatus(lock)
+                  const chainName = getChainById(lock.chainId)?.name ?? `Chain ${lock.chainId}`
+                  return (
+                    <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)}>
+                      <td>
+                        <div className="asset-cell">
+                          <div className="asset-avatar" style={{ background: '#242018', color: '#f1cb73' }}>
+                            {assetLabel(lock).slice(0, 2)}
+                          </div>
+                          <div>
+                            <div className="asset-name">{assetLabel(lock)}</div>
+                            <div className="asset-dex">{chainName}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="asset-name">{lock.name}</div>
-                          <div className="asset-dex">{lock.dex}</div>
+                      </td>
+                      <td>
+                        <div className={`type-badge ${lock.assetType}`}>
+                          {lock.assetType === 'lp' ? 'LP Lock' : 'Token Lock'}
                         </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className={`type-badge ${lock.type}`}>
-                        {lock.type === 'lp' ? 'LP Lock' : 'Token Lock'}
-                      </div>
-                      <div className="mode-label">{lock.mode}</div>
-                    </td>
-                    <td>
-                      <div className="amt-main">{lock.amount}</div>
-                      <div className="amt-usd">{lock.amountUsd}</div>
-                    </td>
-                    <td>
-                      <div className="date-main">{lock.until}</div>
-                      <div className="days-left">{lock.daysLeft}</div>
-                    </td>
-                    <td>
-                      <div className="pct-wrap">
-                        <div className="pct-bar">
-                          <div
-                            className={`pct-fill ${PctFillClass(lock.pct)}`}
-                            style={{ width: `${lock.pct}%` }}
-                          />
+                        <div className="mode-label">{lock.isPermanent ? 'Permanent' : lock.lockType === 'vesting' ? 'Vesting' : 'Cliff'}</div>
+                      </td>
+                      <td>
+                        <div className="amt-main">{formatAmount(lock.amount, lock.token?.decimals ?? 18)}</div>
+                        <div className="amt-usd">{lock.tvlUsd ? formatUsd(lock.tvlUsd) : '—'}</div>
+                      </td>
+                      <td>
+                        <div className="date-main">{lock.isPermanent ? 'Permanently' : formatDate(lock.unlockDate)}</div>
+                        <div className="days-left">
+                          {lock.isPermanent ? 'Withdrawal Renounced' : lock.unlockDate && daysUntil(lock.unlockDate)! >= 0 ? `${daysUntil(lock.unlockDate)} days left` : ''}
                         </div>
-                        <span className="pct-val">{lock.pct}%</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`status-chip ${lock.status}`}>
-                        {lock.status === 'permanent' ? (
-                          <><Infinity size={9} /> Permanent</>
-                        ) : lock.status === 'active' ? (
-                          <><CheckCircle size={9} /> Active</>
-                        ) : 'Expired'}
-                      </span>
-                    </td>
-                    <td>
-                      <ChevronRight size={14} color="var(--dim)" />
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td>
+                        <div className="pct-wrap">
+                          <div className="pct-bar">
+                            <div className={`pct-fill ${PctFillClass(pct)}`} style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="pct-val">{pct.toFixed(0)}%</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`status-chip ${status}`}>
+                          {status === 'permanent' ? (
+                            <><Infinity size={9} /> Permanent</>
+                          ) : status === 'active' ? (
+                            <><CheckCircle size={9} /> Active</>
+                          ) : 'Withdrawn'}
+                        </span>
+                      </td>
+                      <td>
+                        <ChevronRight size={14} color="var(--dim)" />
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Trending Panel */}
+        {/* Highest Value Locks */}
         <div className="trending-panel">
           <div className="section-header">
-            <span className="section-title">Trending Locks</span>
-            <a className="view-all">View All <ChevronRight size={13} /></a>
+            <span className="section-title">Highest Value Locks</span>
+            <a className="view-all" onClick={() => navigate('/locks')}>View All <ChevronRight size={13} /></a>
           </div>
 
-          {TRENDING.map(item => (
-            <div className="trending-item" key={item.name}>
-              <div
-                className="t-avatar"
-                style={{ background: item.colors.bg, color: item.colors.text }}
-              >
-                {item.name.slice(0, 2)}
+          {locksLoaded && highestValueLocks.length === 0 && (
+            <div style={{ padding: '14px 2px', color: 'var(--dim)', fontSize: 12.5 }}>
+              No priced locks yet.
+            </div>
+          )}
+          {highestValueLocks.map(lock => (
+            <div className="trending-item" key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)} style={{ cursor: 'pointer' }}>
+              <div className="t-avatar" style={{ background: '#242018', color: '#f1cb73' }}>
+                {assetLabel(lock).slice(0, 2)}
               </div>
               <div className="t-info">
-                <div className="t-name">{item.name}</div>
-                <div className="t-dex">{item.dex}</div>
+                <div className="t-name">{assetLabel(lock)}</div>
+                <div className="t-dex">{getChainById(lock.chainId)?.name ?? `Chain ${lock.chainId}`}</div>
               </div>
               <div className="t-right">
-                <div className="t-tvl">{item.tvl}</div>
-                <div className="t-pct-bar">
-                  <div className="t-pct-fill" style={{ width: `${item.pct}%` }} />
-                </div>
+                <div className="t-tvl">{formatUsd(lock.tvlUsd)}</div>
               </div>
             </div>
           ))}
@@ -518,34 +477,39 @@ export function Home() {
           </button>
         </div>
         <div className="home-unlocks-grid">
-          {[
-            { asset: 'UNI / WETH', chain: 'ETH', tvl: '$2.84M', days: 5, type: 'LP' },
-            { asset: 'SHIB / WETH', chain: 'ETH', tvl: '$1.12M', days: 11, type: 'LP' },
-            { asset: 'CAKE / BNB', chain: 'BNB', tvl: '$880K', days: 21, type: 'LP' },
-          ].map(u => (
-            <div
-              key={u.asset}
-              onClick={() => navigate('/calendar')}
-              style={{ background: 'var(--card-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
-            >
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(217, 173, 74,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
-                {u.asset.slice(0, 3)}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.asset}</div>
-                <div style={{ fontSize: 11, color: 'var(--dim)', display: 'flex', gap: 5 }}>
-                  <span style={{ color: u.chain === 'ETH' ? '#627EEA' : '#F3BA2F', fontWeight: 600 }}>{u.chain}</span>
-                  · {u.type}
+          {locksLoaded && upcomingUnlocks.length === 0 && (
+            <div style={{ padding: '14px 2px', color: 'var(--dim)', fontSize: 12.5 }}>
+              No upcoming unlocks yet.
+            </div>
+          )}
+          {upcomingUnlocks.map(lock => {
+            const days = daysUntil(lock.unlockDate)!
+            const chainName = getChainById(lock.chainId)?.name ?? `Chain ${lock.chainId}`
+            return (
+              <div
+                key={`${lock.chainId}-${lock.lockId}`}
+                onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)}
+                style={{ background: 'var(--card-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(217, 173, 74,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
+                  {assetLabel(lock).slice(0, 3)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{assetLabel(lock)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--dim)', display: 'flex', gap: 5 }}>
+                    <span style={{ fontWeight: 600 }}>{chainName}</span>
+                    · {lock.assetType === 'lp' ? 'LP' : 'Token'}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{lock.tvlUsd ? formatUsd(lock.tvlUsd) : '—'}</div>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: days <= 7 ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)', color: days <= 7 ? 'var(--danger)' : 'var(--warning)', border: `1px solid ${days <= 7 ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)'}` }}>
+                    {days}d
+                  </span>
                 </div>
               </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{u.tvl}</div>
-                <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: u.days <= 7 ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)', color: u.days <= 7 ? 'var(--danger)' : 'var(--warning)', border: `1px solid ${u.days <= 7 ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)'}` }}>
-                  {u.days}d
-                </span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 

@@ -1,56 +1,37 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Calendar, List, Clock, ExternalLink, Filter } from 'lucide-react'
+import { Calendar, List, Clock, Filter } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { api, type ApiLock } from '../lib/api'
+import { CHAIN_CONFIGS, getChainById } from '../lib/chains'
 
 type CalendarUnlock = {
-  id: string
+  chainId: number
+  lockId: string
   asset: string
   symbol: string
-  chain: 'ETH' | 'BNB' | 'Base'
   type: 'LP' | 'Token'
   tvl: number
   unlockDate: Date
   lockPct: number
-  isPermanent: boolean
 }
 
-const CHAIN_COLOR: Record<string, string> = {
-  ETH: '#627EEA', BNB: '#F3BA2F', Base: '#0052FF',
+function toCalendarUnlock(lock: ApiLock): CalendarUnlock | null {
+  if (lock.isPermanent || !lock.unlockDate) return null
+  const unlockDate = new Date(lock.unlockDate)
+  if (unlockDate.getTime() < Date.now()) return null
+  const symbol = lock.token?.symbol || `${lock.assetAddress.slice(0, 6)}...`
+  return {
+    chainId: lock.chainId,
+    lockId: lock.lockId,
+    asset: symbol,
+    symbol,
+    type: lock.assetType === 'lp' ? 'LP' : 'Token',
+    tvl: lock.tvlUsd ? Number(lock.tvlUsd) : 0,
+    unlockDate,
+    lockPct: lock.lockedPercentage ? Number(lock.lockedPercentage) : 0,
+  }
 }
-
-const raw: CalendarUnlock[] = [
-  { id: '7',  asset: 'UNI / WETH',    symbol: 'UNI',   chain: 'ETH',  type: 'LP',    tvl: 2840000, unlockDate: new Date('2026-06-12'), lockPct: 100, isPermanent: false },
-  { id: '14', asset: 'PEPE',          symbol: 'PEPE',  chain: 'ETH',  type: 'Token', tvl: 940000,  unlockDate: new Date('2026-06-15'), lockPct: 78,  isPermanent: false },
-  { id: '12', asset: 'SHIB / WETH',   symbol: 'SHIB',  chain: 'ETH',  type: 'LP',    tvl: 1120000, unlockDate: new Date('2026-06-18'), lockPct: 95,  isPermanent: false },
-  { id: '31', asset: 'BRETT',         symbol: 'BRETT', chain: 'Base', type: 'Token', tvl: 620000,  unlockDate: new Date('2026-06-20'), lockPct: 60,  isPermanent: false },
-  { id: '3',  asset: 'CAKE / BNB',    symbol: 'CAKE',  chain: 'BNB',  type: 'LP',    tvl: 880000,  unlockDate: new Date('2026-06-28'), lockPct: 100, isPermanent: false },
-  { id: '19', asset: 'ARB',           symbol: 'ARB',   chain: 'ETH',  type: 'Token', tvl: 640000,  unlockDate: new Date('2026-07-03'), lockPct: 45,  isPermanent: false },
-  { id: '5',  asset: 'DEGEN / WETH',  symbol: 'DEGEN', chain: 'Base', type: 'LP',    tvl: 480000,  unlockDate: new Date('2026-07-08'), lockPct: 82,  isPermanent: false },
-  { id: '22', asset: 'MATIC',         symbol: 'MATIC', chain: 'ETH',  type: 'Token', tvl: 310000,  unlockDate: new Date('2026-07-15'), lockPct: 30,  isPermanent: false },
-  { id: '8',  asset: 'LINK / USDC',   symbol: 'LINK',  chain: 'ETH',  type: 'LP',    tvl: 1860000, unlockDate: new Date('2026-07-19'), lockPct: 100, isPermanent: false },
-  { id: '41', asset: 'FLOKI',         symbol: 'FLOKI', chain: 'BNB',  type: 'Token', tvl: 230000,  unlockDate: new Date('2026-07-22'), lockPct: 55,  isPermanent: false },
-  { id: '9',  asset: 'AAVE / WETH',   symbol: 'AAVE',  chain: 'ETH',  type: 'LP',    tvl: 3200000, unlockDate: new Date('2026-07-30'), lockPct: 100, isPermanent: false },
-  { id: '17', asset: 'MEME',          symbol: 'MEME',  chain: 'ETH',  type: 'Token', tvl: 180000,  unlockDate: new Date('2026-08-04'), lockPct: 70,  isPermanent: false },
-  { id: '24', asset: 'TOSHI / WETH',  symbol: 'TOSHI', chain: 'Base', type: 'LP',    tvl: 540000,  unlockDate: new Date('2026-08-10'), lockPct: 90,  isPermanent: false },
-  { id: '33', asset: 'BONK',          symbol: 'BONK',  chain: 'ETH',  type: 'Token', tvl: 410000,  unlockDate: new Date('2026-08-14'), lockPct: 65,  isPermanent: false },
-  { id: '11', asset: 'WBTC / USDC',   symbol: 'WBTC',  chain: 'ETH',  type: 'LP',    tvl: 4800000, unlockDate: new Date('2026-08-21'), lockPct: 100, isPermanent: false },
-  { id: '28', asset: 'BANANA / BNB',  symbol: 'BNB',   chain: 'BNB',  type: 'LP',    tvl: 290000,  unlockDate: new Date('2026-08-28'), lockPct: 80,  isPermanent: false },
-  { id: '15', asset: 'LDO',           symbol: 'LDO',   chain: 'ETH',  type: 'Token', tvl: 730000,  unlockDate: new Date('2026-09-05'), lockPct: 40,  isPermanent: false },
-  { id: '38', asset: 'VIRTUAL / ETH', symbol: 'VIRT',  chain: 'Base', type: 'LP',    tvl: 1420000, unlockDate: new Date('2026-09-12'), lockPct: 100, isPermanent: false },
-  { id: '42', asset: 'TRUMP',         symbol: 'TRUMP', chain: 'ETH',  type: 'Token', tvl: 920000,  unlockDate: new Date('2026-09-18'), lockPct: 52,  isPermanent: false },
-  { id: '6',  asset: 'CRV / USDT',    symbol: 'CRV',   chain: 'ETH',  type: 'LP',    tvl: 2100000, unlockDate: new Date('2026-09-25'), lockPct: 100, isPermanent: false },
-  { id: '45', asset: 'DOGS / BNB',    symbol: 'DOGS',  chain: 'BNB',  type: 'LP',    tvl: 160000,  unlockDate: new Date('2026-10-02'), lockPct: 70,  isPermanent: false },
-  { id: '20', asset: 'OP',            symbol: 'OP',    chain: 'ETH',  type: 'Token', tvl: 580000,  unlockDate: new Date('2026-10-10'), lockPct: 35,  isPermanent: false },
-  { id: '13', asset: 'MKR / WETH',    symbol: 'MKR',   chain: 'ETH',  type: 'LP',    tvl: 1670000, unlockDate: new Date('2026-10-18'), lockPct: 100, isPermanent: false },
-  { id: '50', asset: 'ZORA',          symbol: 'ZORA',  chain: 'Base', type: 'Token', tvl: 340000,  unlockDate: new Date('2026-10-25'), lockPct: 80,  isPermanent: false },
-  { id: '27', asset: 'BNB / BUSD',    symbol: 'BNB',   chain: 'BNB',  type: 'LP',    tvl: 2900000, unlockDate: new Date('2026-11-01'), lockPct: 100, isPermanent: false },
-  { id: '35', asset: 'WIF',           symbol: 'WIF',   chain: 'ETH',  type: 'Token', tvl: 480000,  unlockDate: new Date('2026-11-08'), lockPct: 60,  isPermanent: false },
-  { id: '16', asset: 'UNI / USDC',    symbol: 'UNI',   chain: 'ETH',  type: 'LP',    tvl: 3100000, unlockDate: new Date('2026-11-15'), lockPct: 100, isPermanent: false },
-  { id: '48', asset: 'HIGHER',        symbol: 'HIGH',  chain: 'Base', type: 'Token', tvl: 210000,  unlockDate: new Date('2026-11-22'), lockPct: 75,  isPermanent: false },
-  { id: '18', asset: 'ETH / USDT',    symbol: 'ETH',   chain: 'ETH',  type: 'LP',    tvl: 7400000, unlockDate: new Date('2026-12-05'), lockPct: 100, isPermanent: false },
-  { id: '53', asset: 'SAFE',          symbol: 'SAFE',  chain: 'ETH',  type: 'Token', tvl: 660000,  unlockDate: new Date('2026-12-12'), lockPct: 50,  isPermanent: false },
-]
 
 function fmtTvl(n: number) {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
@@ -81,16 +62,25 @@ function groupByMonth(items: CalendarUnlock[]) {
 export function UnlockCalendar() {
   const navigate = useNavigate()
   const [view, setView] = useState<'list' | 'calendar'>('list')
-  const [chain, setChain] = useState<'all' | 'ETH' | 'BNB' | 'Base'>('all')
+  const [chain, setChain] = useState<'all' | number>('all')
   const [type, setType] = useState<'all' | 'LP' | 'Token'>('all')
   const [minTvl, setMinTvl] = useState(0)
+  const [raw, setRaw] = useState<CalendarUnlock[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    api.locks(100)
+      .then(r => setRaw(r.locks.map(toCalendarUnlock).filter((u): u is CalendarUnlock => u !== null)))
+      .catch(() => setRaw([]))
+      .finally(() => setLoaded(true))
+  }, [])
 
   const filtered = useMemo(() => raw
-    .filter(u => chain === 'all' || u.chain === chain)
+    .filter(u => chain === 'all' || u.chainId === chain)
     .filter(u => type === 'all' || u.type === type)
     .filter(u => u.tvl >= minTvl)
     .sort((a, b) => a.unlockDate.getTime() - b.unlockDate.getTime()),
-    [chain, type, minTvl])
+    [raw, chain, type, minTvl])
 
   const grouped = useMemo(() => groupByMonth(filtered), [filtered])
 
@@ -120,13 +110,13 @@ export function UnlockCalendar() {
 
         {/* Chain filter */}
         <div style={{ display: 'flex', gap: 4 }}>
-          {(['all', 'ETH', 'BNB', 'Base'] as const).map(c => (
+          {(['all', ...CHAIN_CONFIGS.map(c => c.id)] as const).map(c => (
             <button key={c} onClick={() => setChain(c)} style={{
               fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
               border: `1px solid ${chain === c ? 'rgba(217, 173, 74,0.5)' : 'var(--border)'}`,
               background: chain === c ? 'rgba(217, 173, 74,0.12)' : 'transparent',
               color: chain === c ? 'var(--accent)' : 'var(--dim)',
-            }}>{c === 'all' ? 'All Chains' : c}</button>
+            }}>{c === 'all' ? 'All Chains' : getChainById(c)?.name ?? c}</button>
           ))}
         </div>
 
@@ -176,9 +166,13 @@ export function UnlockCalendar() {
       </motion.div>
 
       {/* Content */}
-      {filtered.length === 0 ? (
+      {!loaded ? (
         <div style={{ padding: '64px 0', textAlign: 'center', color: 'var(--dim)', fontSize: 13 }}>
-          No unlocks match these filters.
+          Loading...
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: '64px 0', textAlign: 'center', color: 'var(--dim)', fontSize: 13 }}>
+          {raw.length === 0 ? 'No upcoming unlocks yet.' : 'No unlocks match these filters.'}
         </div>
       ) : view === 'list' ? (
         <ListView grouped={grouped} navigate={navigate} />
@@ -212,11 +206,11 @@ function ListView({ grouped, navigate }: { grouped: Map<string, CalendarUnlock[]
               const col = urgencyColor(days)
               return (
                 <motion.div
-                  key={u.id}
+                  key={`${u.chainId}-${u.lockId}`}
                   className="chart-card"
                   style={{ padding: '12px 14px', cursor: 'pointer' }}
                   whileHover={{ y: -1, borderColor: 'rgba(217, 173, 74,0.3)' }}
-                  onClick={() => navigate(`/lock/${u.id}`)}
+                  onClick={() => navigate(`/lock/${u.chainId}/${u.lockId}`)}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <div style={{
@@ -231,8 +225,8 @@ function ListView({ grouped, navigate }: { grouped: Map<string, CalendarUnlock[]
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{
                           fontSize: 9.5, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
-                          background: `${CHAIN_COLOR[u.chain]}18`, color: CHAIN_COLOR[u.chain],
-                        }}>{u.chain}</span>
+                          background: `${getChainById(u.chainId)?.dotColor ?? '#a9a49a'}18`, color: getChainById(u.chainId)?.dotColor ?? '#a9a49a',
+                        }}>{getChainById(u.chainId)?.name ?? `Chain ${u.chainId}`}</span>
                         <span style={{
                           fontSize: 9.5, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
                           background: u.type === 'LP' ? 'rgba(103, 199, 144,0.1)' : 'rgba(241, 203, 115,0.1)',
@@ -330,15 +324,15 @@ function CalendarView({ filtered, navigate }: { filtered: CalendarUnlock[]; navi
                     cursor: hasEvent ? 'pointer' : 'default',
                     position: 'relative',
                   }}
-                    onClick={() => hasEvent && navigate(`/lock/${events[0].id}`)}
+                    onClick={() => hasEvent && navigate(`/lock/${events[0].chainId}/${events[0].lockId}`)}
                   >
                     <div style={{ fontSize: 10, fontWeight: hasEvent ? 700 : 400, color: hasEvent ? 'var(--accent)' : 'var(--dim)', lineHeight: 1 }}>{day}</div>
                     {hasEvent && (
                       <div style={{ marginTop: 3 }}>
                         {events.slice(0, 2).map(u => (
-                          <div key={u.id} style={{
+                          <div key={`${u.chainId}-${u.lockId}`} style={{
                             fontSize: 8.5, fontWeight: 600, color: 'var(--text)',
-                            background: `${CHAIN_COLOR[u.chain]}22`, borderRadius: 2, padding: '1px 3px', marginBottom: 1,
+                            background: `${getChainById(u.chainId)?.dotColor ?? '#a9a49a'}22`, borderRadius: 2, padding: '1px 3px', marginBottom: 1,
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                           }}>{u.symbol}</div>
                         ))}

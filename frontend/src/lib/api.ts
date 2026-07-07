@@ -102,6 +102,18 @@ export type SearchResult = {
   lockedPercentage?: string | null
 }
 
+export type GlobalStats = {
+  totalLocks: number
+  totalActiveLocks: number
+  totalPermanentLocks: number
+  totalTvl: string
+  totalLpTvl: string
+  totalTokenTvl: string
+  totalFeesCollected: string
+  uniqueLockers: number
+  byChain: Array<{ chainId: number; name: string; totalLocks: number; totalActiveLocks: number; totalPermanentLocks: number; totalTvl: string; totalFeesCollected: string }>
+}
+
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`)
   if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`)
@@ -110,16 +122,7 @@ async function apiGet<T>(path: string): Promise<T> {
 
 export const api = {
   chains: () => apiGet<ChainInfo[]>('/v1/chains'),
-  stats: () => apiGet<{
-    totalLocks: number
-    totalActiveLocks: number
-    totalPermanentLocks: number
-    totalTvl: string
-    totalLpTvl: string
-    totalTokenTvl: string
-    totalFeesCollected: string
-    byChain: Array<{ chainId: number; name: string; totalLocks: number; totalActiveLocks: number; totalPermanentLocks: number; totalTvl: string; totalFeesCollected: string }>
-  }>('/v1/stats'),
+  stats: () => apiGet<GlobalStats>('/v1/stats'),
   locks: (limit = 50) => apiGet<{ locks: ApiLock[] }>(`/v1/locks?limit=${limit}`),
   lock: (chainId: number, lockId: string) => apiGet<AssetStatus>(`/v1/locks/${chainId}/${lockId}`),
   search: (query: string) => apiGet<{ query: string; results: SearchResult[] }>(`/v1/search?q=${encodeURIComponent(query)}`),

@@ -44,7 +44,7 @@ const navSections = [
     label: 'Community',
     items: [
       { to: '/community-grants', label: 'Community Grants', icon: HandHeart },
-      { to: '/dao',              label: 'DAO Governance',   icon: Vote,     badge: 'LIVE' },
+      { to: '/dao',              label: 'DAO Governance',   icon: Vote,     badge: 'SOON' },
     ],
   },
   {

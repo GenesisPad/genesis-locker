@@ -2,24 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Search, ChevronRight, Shield, TrendingUp, Users, Lock,
-  Trophy, Layers, Infinity, CheckCircle,
+  Search, ChevronRight, TrendingUp, Lock,
+  Layers, Infinity, CheckCircle, Coins,
 } from 'lucide-react'
-import { MOCK_PROFILES } from '../lib/projectProfiles'
 import { ApiLock, api, formatAmount, formatDate, formatUsd } from '../lib/api'
+import { getChainById } from '../lib/chains'
 
 // ─── shared helpers ────────────────────────────────────────────────────────
 
-type ChainF   = 'All' | 'ETH' | 'BNB' | 'Base'
-type StatusF  = 'all' | 'renounced' | 'permanent' | 'audited'
+type ChainF   = 'All' | number
 type LockFilter = 'all' | 'lp' | 'token' | 'cliff' | 'vesting' | 'permanent'
 
-function scoreColor(s: number) {
-  return s >= 80 ? 'var(--success)' : s >= 60 ? 'var(--warning)' : 'var(--danger)'
-}
-function scoreBg(s: number) {
-  return s >= 80 ? 'rgba(34,197,94,0.1)' : s >= 60 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)'
-}
 function formatTvl(n: number) {
   if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
   if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`
@@ -30,20 +23,72 @@ function lockName(lock: ApiLock) {
   return lock.token?.symbol || `${lock.assetAddress.slice(0, 6)}…${lock.assetAddress.slice(-4)}`
 }
 
+// ─── asset grouping (derived from real locks, no fabricated data) ─────────
+
+type AssetGroup = {
+  assetAddress: string
+  chainId: number
+  assetType: 'lp' | 'token'
+  name: string
+  symbol: string
+  totalTvlUsd: number
+  totalLockedPct: number
+  activeLocks: number
+  isPermanent: boolean
+  hasMintRisk: boolean
+  hasHighTaxRisk: boolean
+  hasBlacklistRisk: boolean
+}
+
+function groupByAsset(locks: ApiLock[]): AssetGroup[] {
+  const map = new Map<string, AssetGroup>()
+  for (const lock of locks) {
+    const key = `${lock.chainId}-${lock.assetAddress.toLowerCase()}`
+    const existing = map.get(key)
+    const tvl = Number(lock.tvlUsd || 0)
+    const pct = Number(lock.lockedPercentage || 0)
+    if (existing) {
+      existing.totalTvlUsd += Number.isFinite(tvl) ? tvl : 0
+      existing.totalLockedPct = Math.min(100, existing.totalLockedPct + (Number.isFinite(pct) ? pct : 0))
+      existing.activeLocks += 1
+      if (lock.isPermanent) existing.isPermanent = true
+      if (lock.token?.hasMintRisk) existing.hasMintRisk = true
+      if (lock.token?.hasHighTaxRisk) existing.hasHighTaxRisk = true
+      if (lock.token?.hasBlacklistRisk) existing.hasBlacklistRisk = true
+    } else {
+      map.set(key, {
+        assetAddress: lock.assetAddress,
+        chainId: lock.chainId,
+        assetType: lock.assetType,
+        name: lock.token?.name || lockName(lock),
+        symbol: lock.token?.symbol || lockName(lock),
+        totalTvlUsd: Number.isFinite(tvl) ? tvl : 0,
+        totalLockedPct: Math.min(100, Number.isFinite(pct) ? pct : 0),
+        activeLocks: 1,
+        isPermanent: lock.isPermanent,
+        hasMintRisk: !!lock.token?.hasMintRisk,
+        hasHighTaxRisk: !!lock.token?.hasHighTaxRisk,
+        hasBlacklistRisk: !!lock.token?.hasBlacklistRisk,
+      })
+    }
+  }
+  return [...map.values()].sort((a, b) => b.totalTvlUsd - a.totalTvlUsd)
+}
+
 // ─── tab definitions ────────────────────────────────────────────────────────
 
 const TABS = [
   {
-    key: 'projects',
-    label: 'Verified Projects',
-    icon: Trophy,
-    desc: 'Curated registry of projects that have set up a profile and earned a Trust Score — ranked by on-chain credibility.',
+    key: 'assets',
+    label: 'Locked Assets',
+    icon: Coins,
+    desc: 'Every token and LP pair with at least one lock on Genesis Locker, ranked by total value locked — derived live from on-chain lock data.',
   },
   {
     key: 'locks',
     label: 'All Locks',
     icon: Layers,
-    desc: 'Raw ledger of every lock created on Genesis Locker, across all chains and asset types — no curation, no minimum score.',
+    desc: 'Raw ledger of every lock created on Genesis Locker, across all chains and asset types.',
   },
 ] as const
 type TabKey = typeof TABS[number]['key']
@@ -53,67 +98,62 @@ type TabKey = typeof TABS[number]['key']
 export function Projects() {
   const navigate      = useNavigate()
   const [params, setParams] = useSearchParams()
-  const activeTab     = (params.get('tab') === 'locks' ? 'locks' : 'projects') as TabKey
+  const activeTab     = (params.get('tab') === 'locks' ? 'locks' : 'assets') as TabKey
 
   function setTab(key: TabKey) {
-    if (key === 'projects') {
+    if (key === 'assets') {
       setParams({})
     } else {
       setParams({ tab: key })
     }
   }
 
-  // ── Projects tab state ──
+  const [locks,      setLocks]      = useState<ApiLock[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [loadError,  setLoadError]  = useState('')
+
+  useEffect(() => {
+    api.locks(200)
+      .then(r  => setLocks(r.locks))
+      .catch(e => setLoadError(e instanceof Error ? e.message : 'Failed to load locks'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  // ── Assets tab state ──
   const [query,        setQuery]        = useState('')
   const [chainFilter,  setChainFilter]  = useState<ChainF>('All')
-  const [minScore,     setMinScore]     = useState(0)
-  const [statusFilter, setStatusFilter] = useState<StatusF>('all')
+
+  const assetGroups = useMemo(() => groupByAsset(locks), [locks])
+  const chainOptions = useMemo(() => {
+    const ids = [...new Set(locks.map(l => l.chainId))]
+    return ids.map(id => ({ id, name: getChainById(id)?.name || `Chain ${id}` }))
+  }, [locks])
 
   const visible = useMemo(() => {
-    return [...MOCK_PROFILES]
-      .filter(p => {
-        if (chainFilter !== 'All' && p.chain !== chainFilter) return false
-        if (p.trustScore < minScore) return false
-        if (statusFilter === 'renounced' && !p.isRenounced) return false
-        if (statusFilter === 'permanent' && !p.isPermanent) return false
-        if (statusFilter === 'audited'   && !p.isAudited)   return false
-        if (query) {
-          const q = query.toLowerCase()
-          return p.name.toLowerCase().includes(q) ||
-                 p.symbol.toLowerCase().includes(q) ||
-                 p.address.toLowerCase().includes(q)
-        }
-        return true
-      })
-      .sort((a, b) => b.trustScore - a.trustScore)
-  }, [query, chainFilter, minScore, statusFilter])
+    return assetGroups.filter(a => {
+      if (chainFilter !== 'All' && a.chainId !== chainFilter) return false
+      if (query) {
+        const q = query.toLowerCase()
+        return a.name.toLowerCase().includes(q) ||
+               a.symbol.toLowerCase().includes(q) ||
+               a.assetAddress.toLowerCase().includes(q)
+      }
+      return true
+    })
+  }, [assetGroups, query, chainFilter])
 
-  const totalTvl      = MOCK_PROFILES.reduce((s, p) => s + p.tvlLocked, 0)
-  const avgScore      = Math.round(MOCK_PROFILES.reduce((s, p) => s + p.trustScore, 0) / MOCK_PROFILES.length)
-  const permanentCount = MOCK_PROFILES.filter(p => p.isPermanent).length
+  const totalTvl    = assetGroups.reduce((s, a) => s + a.totalTvlUsd, 0)
+  const permanentCount = assetGroups.filter(a => a.isPermanent).length
 
   const statItems = [
-    { icon: Users,     label: 'Projects Listed',   value: String(MOCK_PROFILES.length) },
-    { icon: TrendingUp,label: 'Total TVL Locked',  value: formatTvl(totalTvl) },
-    { icon: Shield,    label: 'Avg Trust Score',   value: `${avgScore}/100` },
-    { icon: Lock,      label: 'Permanently Locked',value: String(permanentCount) },
+    { icon: Coins,      label: 'Assets Locked',    value: String(assetGroups.length) },
+    { icon: TrendingUp, label: 'Total TVL Locked', value: formatTvl(totalTvl) },
+    { icon: Lock,       label: 'Permanently Locked', value: String(permanentCount) },
   ]
 
   // ── Locks tab state ──
   const [lockFilter, setLockFilter] = useState<LockFilter>('all')
   const [lockQuery,  setLockQuery]  = useState('')
-  const [locks,      setLocks]      = useState<ApiLock[]>([])
-  const [loading,    setLoading]    = useState(false)
-  const [lockError,  setLockError]  = useState('')
-
-  useEffect(() => {
-    if (activeTab !== 'locks' || locks.length > 0) return
-    setLoading(true)
-    api.locks(100)
-      .then(r  => setLocks(r.locks))
-      .catch(e => setLockError(e instanceof Error ? e.message : 'Failed to load locks'))
-      .finally(() => setLoading(false))
-  }, [activeTab])
 
   const LOCK_FILTERS: { key: LockFilter; label: string }[] = [
     { key: 'all',       label: 'All Locks' },
@@ -148,7 +188,7 @@ export function Projects() {
       >
         <h1 className="page-title">Projects &amp; Locks</h1>
         <p className="page-desc">
-          Browse verified projects ranked by trust, or search the raw ledger of every on-chain lock.
+          Browse locked assets ranked by value, or search the raw ledger of every on-chain lock.
         </p>
       </motion.div>
 
@@ -194,12 +234,14 @@ export function Projects() {
         </motion.div>
       </AnimatePresence>
 
-      {/* ═══════════════ VERIFIED PROJECTS TAB ═══════════════ */}
-      {activeTab === 'projects' && (
-        <motion.div key="projects-content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+      {loadError && <div className="form-alert error">{loadError}</div>}
+
+      {/* ═══════════════ LOCKED ASSETS TAB ═══════════════ */}
+      {activeTab === 'assets' && (
+        <motion.div key="assets-content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
 
           {/* Stats strip */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
             {statItems.map(({ icon: Icon, label, value }) => (
               <div key={label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
                 <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(217, 173, 74,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -219,40 +261,27 @@ export function Projects() {
               <span className="search-icon"><Search size={13} /></span>
               <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search name, symbol, address…" />
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {(['All', 'ETH', 'BNB', 'Base'] as ChainF[]).map(c => (
-                <button key={c} className={`filter-btn${chainFilter === c ? ' active' : ''}`} onClick={() => setChainFilter(c)}>{c}</button>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <button className={`filter-btn${chainFilter === 'All' ? ' active' : ''}`} onClick={() => setChainFilter('All')}>All</button>
+              {chainOptions.map(c => (
+                <button key={c.id} className={`filter-btn${chainFilter === c.id ? ' active' : ''}`} onClick={() => setChainFilter(c.id)}>{c.name}</button>
               ))}
             </div>
-            <select value={minScore} onChange={e => setMinScore(Number(e.target.value))}
-              style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 7, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
-              <option value={0}>Any Score</option>
-              <option value={60}>60+ Score</option>
-              <option value={75}>75+ Score</option>
-              <option value={90}>90+ Score</option>
-            </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as StatusF)}
-              style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 7, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
-              <option value="all">All Status</option>
-              <option value="renounced">Ownership Renounced</option>
-              <option value="permanent">Permanent Lock</option>
-              <option value="audited">Audited</option>
-            </select>
             <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--dim)', alignSelf: 'center' }}>
-              {visible.length} project{visible.length !== 1 ? 's' : ''}
+              {visible.length} asset{visible.length !== 1 ? 's' : ''}
             </span>
           </div>
 
-          {/* Projects table */}
+          {/* Assets table */}
           <div className="explorer-table-card">
             <div className="tbl-wrapper">
               <table className="tbl">
                 <thead>
                   <tr>
                     <th style={{ width: 44 }}>#</th>
-                    <th>Project</th>
+                    <th>Asset</th>
                     <th>Chain</th>
-                    <th>Trust Score</th>
+                    <th>Type</th>
                     <th>TVL Locked</th>
                     <th>Lock %</th>
                     <th>Status</th>
@@ -260,12 +289,11 @@ export function Projects() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((p, i) => {
-                    const sc  = scoreColor(p.trustScore)
-                    const sb  = scoreBg(p.trustScore)
-                    const pct = p.lockPct
+                  {visible.map((a, i) => {
+                    const pct = a.totalLockedPct
+                    const chainCfg = getChainById(a.chainId)
                     return (
-                      <tr key={p.address} onClick={() => navigate(`/project/${p.address}`)} style={{ cursor: 'pointer' }}>
+                      <tr key={`${a.chainId}-${a.assetAddress}`} onClick={() => navigate(`/project/${a.assetAddress}`)} style={{ cursor: 'pointer' }}>
                         <td>
                           <span style={{ color: i < 3 ? 'var(--accent)' : 'var(--dim)', fontWeight: i < 3 ? 700 : 500, fontSize: 13 }}>
                             {i + 1}
@@ -273,49 +301,43 @@ export function Projects() {
                         </td>
                         <td>
                           <div className="asset-cell">
-                            <div className="asset-avatar" style={{ background: '#242018', color: '#f1cb73', fontSize: 13, fontWeight: 700 }}>
-                              {p.symbol.slice(0, 2)}
+                            <div className="asset-avatar" style={{ background: a.assetType === 'lp' ? '#001840' : '#242018', color: a.assetType === 'lp' ? '#8fd6ac' : '#f1cb73', fontSize: 13, fontWeight: 700 }}>
+                              {a.symbol.slice(0, 2)}
                             </div>
                             <div>
-                              <div className="asset-name">{p.name}</div>
-                              <div className="asset-dex">{p.symbol} · {p.category}</div>
+                              <div className="asset-name">{a.name}</div>
+                              <div className="asset-dex">{a.assetAddress.slice(0, 8)}…{a.assetAddress.slice(-6)}</div>
                             </div>
                           </div>
                         </td>
                         <td>
                           <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>
-                            {p.chain}
+                            {chainCfg?.name || a.chainId}
                           </span>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120 }}>
-                            <span style={{ fontWeight: 700, fontSize: 15, color: sc, minWidth: 28, textAlign: 'right', background: sb, padding: '2px 6px', borderRadius: 5 }}>
-                              {p.trustScore}
-                            </span>
-                            <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.07)', minWidth: 50 }}>
-                              <div style={{ width: `${p.trustScore}%`, height: '100%', borderRadius: 2, background: sc }} />
-                            </div>
-                          </div>
+                          <div className={`type-badge ${a.assetType}`}>{a.assetType === 'lp' ? 'LP' : 'Token'}</div>
                         </td>
                         <td>
-                          <div className="amt-main">{formatTvl(p.tvlLocked)}</div>
-                          <div className="amt-usd">{p.activeLocks} active lock{p.activeLocks !== 1 ? 's' : ''}</div>
+                          <div className="amt-main">{formatTvl(a.totalTvlUsd)}</div>
+                          <div className="amt-usd">{a.activeLocks} lock{a.activeLocks !== 1 ? 's' : ''}</div>
                         </td>
                         <td>
                           <div className="pct-wrap">
                             <div className="pct-bar">
-                              <div className={`pct-fill ${pct >= 75 ? 'high' : pct >= 50 ? 'medium' : 'low'}`} style={{ width: `${pct}%` }} />
+                              <div className={`pct-fill ${pctClass(pct)}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                             </div>
-                            <span className="pct-val">{pct}%</span>
+                            <span className="pct-val">{pct.toFixed(0)}%</span>
                           </div>
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                            {p.isPermanent && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(34,197,94,0.12)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.25)', whiteSpace: 'nowrap' }}>Permanent</span>}
-                            {p.isRenounced && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(34,197,94,0.12)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.25)', whiteSpace: 'nowrap' }}>Renounced</span>}
-                            {p.isAudited   && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(103, 199, 144,0.12)',  color: '#8fd6ac',       border: '1px solid rgba(103, 199, 144,0.25)',  whiteSpace: 'nowrap' }}>Audited</span>}
-                            {!p.isRenounced && !p.isPermanent && !p.isAudited && (
-                              <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)', whiteSpace: 'nowrap' }}>Unverified</span>
+                            {a.isPermanent && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(34,197,94,0.12)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.25)', whiteSpace: 'nowrap' }}>Permanent</span>}
+                            {a.hasMintRisk && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)', whiteSpace: 'nowrap' }}>Mint Risk</span>}
+                            {a.hasHighTaxRisk && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.1)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.2)', whiteSpace: 'nowrap' }}>High Tax</span>}
+                            {a.hasBlacklistRisk && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)', whiteSpace: 'nowrap' }}>Blacklist</span>}
+                            {!a.isPermanent && !a.hasMintRisk && !a.hasHighTaxRisk && !a.hasBlacklistRisk && (
+                              <span style={{ fontSize: 10, color: 'var(--dim)' }}>—</span>
                             )}
                           </div>
                         </td>
@@ -326,8 +348,10 @@ export function Projects() {
                 </tbody>
               </table>
             </div>
-            {visible.length === 0 && (
-              <div style={{ padding: '40px 32px', textAlign: 'center', color: 'var(--dim)' }}>No projects match the current filters.</div>
+            {(loading || visible.length === 0) && (
+              <div style={{ padding: '40px 32px', textAlign: 'center', color: 'var(--dim)' }}>
+                {loading ? 'Loading assets…' : 'No locked assets yet — be the first to lock on Genesis Locker.'}
+              </div>
             )}
           </div>
         </motion.div>
@@ -349,8 +373,6 @@ export function Projects() {
               <input value={lockQuery} onChange={e => setLockQuery(e.target.value)} placeholder="Filter by asset, address…" />
             </div>
           </div>
-
-          {lockError && <div className="form-alert error">{lockError}</div>}
 
           {/* Locks table */}
           <div className="explorer-table-card">
@@ -390,7 +412,7 @@ export function Projects() {
                           <div className={`type-badge ${lock.assetType}`}>{lock.assetType === 'lp' ? 'LP Lock' : 'Token Lock'}</div>
                           <div className="mode-label">{lock.lockType}</div>
                         </td>
-                        <td><span style={{ fontSize: 11, fontWeight: 700, padding: '3px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>{lock.chainId}</span></td>
+                        <td><span style={{ fontSize: 11, fontWeight: 700, padding: '3px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>{getChainById(lock.chainId)?.name || lock.chainId}</span></td>
                         <td>
                           <div className="amt-main">{formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)}</div>
                           <div className="amt-usd">{formatUsd(lock.tvlUsd)}</div>
