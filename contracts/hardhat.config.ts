@@ -39,6 +39,21 @@ const config: HardhatUserConfig = {
       url: "http://127.0.0.1:8545",
       chainId: 31337
     }
+  },
+  etherscan: {
+    apiKey: {
+      robinhood: process.env.ROBINHOOD_BLOCKSCOUT_API_KEY || "blockscout"
+    },
+    customChains: [
+      {
+        network: "robinhood",
+        chainId: 4663,
+        urls: {
+          apiURL: "https://robinhoodchain.blockscout.com/api/",
+          browserURL: "https://robinhoodchain.blockscout.com"
+        }
+      }
+    ]
   }
 };
 
