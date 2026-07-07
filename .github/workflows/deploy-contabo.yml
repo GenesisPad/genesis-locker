@@ -30,6 +30,14 @@ jobs:
     steps:
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          # Optional: set this GitHub Actions secret to point the indexer at a
+          # paid/private RPC provider. Falls back to the public Robinhood RPC
+          # below when unset. This is the ONLY place the RPC URL should be
+          # changed - editing it by hand on the server gets silently reverted
+          # on the next deploy, since the env file is rewritten from scratch
+          # every run.
+          ROBINHOOD_RPC_URL: ${{ secrets.ROBINHOOD_RPC_URL }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
@@ -37,6 +45,7 @@ jobs:
           port: ${{ secrets.CONTABO_PORT || '22' }}
           timeout: 30s
           command_timeout: 15m
+          envs: ROBINHOOD_RPC_URL
           script: |
             set -e
 
@@ -99,7 +108,7 @@ jobs:
             NODE_ENV=production
             PORT=$API_PORT
             DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
-            ROBINHOOD_RPC_URL=https://rpc.mainnet.chain.robinhood.com
+            ROBINHOOD_RPC_URL=${ROBINHOOD_RPC_URL:-https://rpc.mainnet.chain.robinhood.com}
             ROBINHOOD_LOCKER_ADDRESS=0x0372a1AE860CDc9357ac6bc8e9F97856b37B80Ed
             INDEXER_BATCH_SIZE=2000
             INDEXER_CONFIRMATIONS=12
