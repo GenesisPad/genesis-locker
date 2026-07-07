@@ -58,9 +58,20 @@ jobs:
             git clone --depth 1 --branch main "$REPO_URL" "$RELEASE_DIR"
 
             # ── Provision Postgres (idempotent, scoped to our own role/db) ──
+            # Reuse the existing password across redeploys by sourcing the real
+            # env file (never regex it - a stray colon/slash easily corrupts a
+            # connection string) and pulling the password out of the DATABASE_URL
+            # that was actually written last time.
             DB_PASS=""
             if [ -f "$API_ENV_FILE" ]; then
-              DB_PASS=$(grep -oP '(?<=:)[^@]+(?=@localhost)' "$API_ENV_FILE" | head -n1 || true)
+              OLD_DATABASE_URL=$(grep '^DATABASE_URL=' "$API_ENV_FILE" | head -n1 | cut -d= -f2-)
+              CANDIDATE=$(echo "$OLD_DATABASE_URL" | sed -E 's#^postgresql://[^:/]+:([^@/]+)@localhost:5432/genesis_locker$#\1#')
+              # Only trust the extraction if it actually changed (i.e. the regex
+              # matched a well-formed URL) and contains no URL-structure chars -
+              # otherwise a previous corrupted file could poison this run too.
+              if [ "$CANDIDATE" != "$OLD_DATABASE_URL" ] && ! echo "$CANDIDATE" | grep -q '[:/@]'; then
+                DB_PASS="$CANDIDATE"
+              fi
             fi
             if [ -z "$DB_PASS" ]; then
               DB_PASS=$(openssl rand -hex 16)
