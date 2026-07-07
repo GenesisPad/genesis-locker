@@ -13,7 +13,15 @@ const configuredChains = [
     // Optional Uniswap V2-compatible factory. When set, plain token locks get
     // priced by looking up their pair against wrappedNativeAddress even if
     // that pair was never itself locked on Genesis Locker. Unset = no guess.
-    dexFactoryAddress: process.env.ROBINHOOD_DEX_FACTORY_ADDRESS || null,
+    // Verified on-chain: matches the router GenesisPad's launcher allows
+    // (0x89e5DB8B5aA49aA85AC63f691524311AEB649eba).factory(), and
+    // factory.getPair(GEN, WETH) returns the same pair address emitted by
+    // the launcher's own Listed(token, pair) event for GEN's graduation.
+    dexFactoryAddress: process.env.ROBINHOOD_DEX_FACTORY_ADDRESS || "0x8bcEaA40B9AcdfAedF85AdF4FF01F5Ad6517937f",
+    // GenesisPad's bonding-curve launcher. Optional: when set, a token that
+    // hasn't graduated to DEX liquidity yet can still be priced from its
+    // live virtual reserves instead of showing no price until it lists.
+    launcherAddress: process.env.ROBINHOOD_LAUNCHER_ADDRESS || "0x513a87182E03090Bf18B5C2faec03f127fE3eC99",
   },
   {
     id: 1, name: "Ethereum", symbol: "ETH",
@@ -23,6 +31,7 @@ const configuredChains = [
     dotColor: "#627EEA", geckoTerminalId: "eth", feeLabel: "0.01 ETH",
     wrappedNativeAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
     dexFactoryAddress: process.env.ETHEREUM_DEX_FACTORY_ADDRESS || null,
+    launcherAddress: null,
   },
   {
     id: 8453, name: "Base", symbol: "ETH",
@@ -32,6 +41,7 @@ const configuredChains = [
     dotColor: "#0052FF", geckoTerminalId: "base", feeLabel: "0.01 ETH",
     wrappedNativeAddress: "0x4200000000000000000000000000000000000006",
     dexFactoryAddress: process.env.BASE_DEX_FACTORY_ADDRESS || null,
+    launcherAddress: null,
   },
   {
     id: 56, name: "BNB Chain", symbol: "BNB",
@@ -41,6 +51,7 @@ const configuredChains = [
     dotColor: "#F3BA2F", geckoTerminalId: "bsc", feeLabel: "0.03 BNB",
     wrappedNativeAddress: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
     dexFactoryAddress: process.env.BSC_DEX_FACTORY_ADDRESS || null,
+    launcherAddress: null,
   },
 ] as const;
 
@@ -60,6 +71,7 @@ export const chains = [
     feeLabel: "0.01 ETH",
     wrappedNativeAddress: process.env.LOCAL_WETH_ADDRESS || null,
     dexFactoryAddress: process.env.LOCAL_DEX_FACTORY_ADDRESS || null,
+    launcherAddress: null,
   } as const] : [])
 ] as const;
 

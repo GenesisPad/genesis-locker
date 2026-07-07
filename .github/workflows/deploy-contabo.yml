@@ -40,9 +40,13 @@ jobs:
           ROBINHOOD_RPC_URL: ${{ secrets.ROBINHOOD_RPC_URL }}
           # Optional: Uniswap V2-compatible factory address on Robinhood Chain,
           # used to price plain token locks that never had their LP locked
-          # here. Leave unset if no such factory/DEX exists yet - the API
-          # will just skip pricing rather than guess.
+          # here. Has a verified default in config.ts, override only if
+          # GenesisPad ever changes its allowed DEX router/factory.
           ROBINHOOD_DEX_FACTORY_ADDRESS: ${{ secrets.ROBINHOOD_DEX_FACTORY_ADDRESS }}
+          # Optional: GenesisPad's bonding-curve launcher, used to price a
+          # token before it graduates to DEX liquidity. Has a verified
+          # default in config.ts.
+          ROBINHOOD_LAUNCHER_ADDRESS: ${{ secrets.ROBINHOOD_LAUNCHER_ADDRESS }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
@@ -50,7 +54,7 @@ jobs:
           port: ${{ secrets.CONTABO_PORT || '22' }}
           timeout: 30s
           command_timeout: 15m
-          envs: ROBINHOOD_RPC_URL,ROBINHOOD_DEX_FACTORY_ADDRESS
+          envs: ROBINHOOD_RPC_URL,ROBINHOOD_DEX_FACTORY_ADDRESS,ROBINHOOD_LAUNCHER_ADDRESS
           script: |
             set -e
 
@@ -116,6 +120,7 @@ jobs:
             ROBINHOOD_RPC_URL=${ROBINHOOD_RPC_URL:-https://rpc.mainnet.chain.robinhood.com}
             ROBINHOOD_LOCKER_ADDRESS=0x0372a1AE860CDc9357ac6bc8e9F97856b37B80Ed
             ROBINHOOD_DEX_FACTORY_ADDRESS=${ROBINHOOD_DEX_FACTORY_ADDRESS:-}
+            ROBINHOOD_LAUNCHER_ADDRESS=${ROBINHOOD_LAUNCHER_ADDRESS:-}
             INDEXER_BATCH_SIZE=2000
             INDEXER_CONFIRMATIONS=12
             UPLOADS_DIR=$UPLOADS_DIR

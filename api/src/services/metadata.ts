@@ -132,14 +132,61 @@ export async function syncAssetMetadata(chainId: number, assetAddress: string, a
   } else if (assetType === AssetType.TOKEN) {
     // Plain token lock, no LP lock involved: try to find the pair ourselves
     // via the chain's DEX factory (if configured) so this token can still get
-    // priced without ever having had its LP locked on Genesis Locker.
-    const priced = await priceTokenViaFactory(chainId, address, provider);
+    // priced without ever having had its LP locked on Genesis Locker. This
+    // only succeeds once the token has an actual AMM pool (e.g. graduated
+    // from a bonding-curve launcher), so it naturally returns null before
+    // that and we fall back to the bonding curve's own live virtual reserves.
+    const priced = (await priceTokenViaFactory(chainId, address, provider))
+      ?? (await priceViaBondingCurve(chainId, address, provider));
     if (priced) {
       await db.token.update({
         where: { chainId_address: { chainId, address } },
         data: { priceUsd: priced.tokenPriceUsd }
       });
     }
+  }
+}
+
+// Minimal read-only slice of GenesisPad's launcher TokenInfo struct getter -
+// only the fields needed to derive a spot price from the bonding curve.
+const launcherAbi = [
+  "function data(address) view returns (address creator, bool tradingStarted, bool listed, bool whitelistOnly, bool lockLp, uint256 wlCount, uint256 totalSupply, uint256 ethRaised, uint256 tokensSold, uint256 virtualEthReserve, uint256 virtualTokenReserve, uint256 k, uint256 feeCollected, uint256 taxOnGnsBps, uint256 taxOnDexBps, bool isBundled, bool isTaxedOnDex, bool isTaxedOnGns, bool isMaxWalletOnGns, uint256 maxWalletAmountOnGns, address dexRouter)"
+] as const;
+
+/**
+ * Prices a token still on GenesisPad's bonding curve using the same
+ * marginal-price math as an AMM: virtualEthReserve / virtualTokenReserve
+ * gives the current spot price in native currency, exactly like a Uniswap
+ * V2 pool's reserve ratio (this is a constant-product curve, k =
+ * virtualEthReserve * virtualTokenReserve, same shape as x*y=k pools).
+ * Returns null once the token has "listed" (graduated) - its virtual
+ * reserves freeze at graduation and are no longer the live market price.
+ */
+async function priceViaBondingCurve(
+  chainId: number,
+  tokenAddress: string,
+  provider: JsonRpcProvider
+): Promise<{ tokenPriceUsd: number } | null> {
+  const chain = chains.find((c) => c.id === chainId);
+  if (!chain?.launcherAddress) return null;
+
+  try {
+    const launcher = new Contract(chain.launcherAddress, launcherAbi, provider);
+    const info = await launcher.data(tokenAddress);
+    if (info.listed || info.virtualEthReserve === 0n || info.virtualTokenReserve === 0n) return null;
+
+    const nativeUsdPrice = await getNativeUsdPrice(chain.symbol);
+    if (!nativeUsdPrice) return null;
+
+    const tokenContract = new Contract(tokenAddress, erc20Abi, provider);
+    const decimals = Number(await tokenContract.decimals().catch(() => 18));
+    const ethReserveFormatted = Number(formatUnits(info.virtualEthReserve, 18));
+    const tokenReserveFormatted = Number(formatUnits(info.virtualTokenReserve, decimals));
+    if (tokenReserveFormatted <= 0) return null;
+
+    return { tokenPriceUsd: (ethReserveFormatted / tokenReserveFormatted) * nativeUsdPrice };
+  } catch {
+    return null;
   }
 }
 
