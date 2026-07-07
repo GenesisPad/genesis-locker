@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { formatEther } from 'viem'
 import { api, ChainInfo, formatUsd } from '../lib/api'
+
+function formatCreationFee(chain: ChainInfo, fallback: string): string {
+  const raw = chain.contracts?.[0]?.creationFee
+  if (!raw) return fallback
+  try {
+    return `${formatEther(BigInt(raw))} ${chain.symbol}`
+  } catch {
+    return fallback
+  }
+}
 
 const CHAIN_STYLE: Record<number, { tag: string; color: string; bg: string; desc: string; fee: string }> = {
   4663: { tag: 'RH', color: '#d9ad4a', bg: '#201a08', desc: "Genesis Locker's primary chain — Robinhood Chain, home of the GenesisPad ecosystem.", fee: '0.01 ETH' },
@@ -43,7 +54,7 @@ export function Chains() {
               </div>
               <div className="chain-stat-row"><span className="chain-stat-label">Total Locks</span><span className="chain-stat-val">{chainStats?.totalLocks ?? 0}</span></div>
               <div className="chain-stat-row"><span className="chain-stat-label">TVL</span><span className="chain-stat-val">{formatUsd(chainStats?.totalTvl)}</span></div>
-              <div className="chain-stat-row"><span className="chain-stat-label">Platform Fee</span><span className="chain-stat-val">{contract?.creationFee || style.fee}</span></div>
+              <div className="chain-stat-row"><span className="chain-stat-label">Platform Fee</span><span className="chain-stat-val">{formatCreationFee(chain, style.fee)}</span></div>
               <div className="chain-stat-row"><span className="chain-stat-label">Ownership</span><span className="chain-stat-val">{contract?.isRenounced ? 'Renounced' : 'Not Renounced'}</span></div>
             </motion.div>
           )
