@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Lock, Plus, Info, ChevronDown, CheckCircle, Loader2, Globe, Twitter, MessageCircle, Hash, Upload, X, Image, Tag } from 'lucide-react'
+import { Lock, Plus, Info, ChevronDown, Loader2, Globe, Twitter, MessageCircle, Hash, Upload, X, Image, Tag } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAccount, useBalance } from 'wagmi'
-import { api } from '../lib/api'
+import { api, uploadImage } from '../lib/api'
 import { CHAIN_CONFIGS, mergeWithApiChains, getChainById, type ChainConfig } from '../lib/chains'
 import { connectWallet, createLockTransaction, switchChain } from '../lib/wallet'
-import { detectAsset, DetectedAsset } from '../lib/projectProfiles'
+import { detectAssetOnChain, type DetectedAsset } from '../lib/assetDetection'
 
 type AssetTab = 'lp' | 'token'
 type LockMode = 'cliff' | 'vesting'
@@ -109,20 +109,15 @@ async function compressImage(
 }
 
 interface ImageMeta { name: string; originalKB: number; compressedKB: number }
-type UploadState = 'idle' | 'compressing' | 'done' | 'error'
+type UploadState = 'idle' | 'compressing' | 'uploading' | 'done' | 'error'
 
-function formatPrice(n: number) {
-  if (n === 0) return '$0.00'
-  if (n < 0.00001) return `$${n.toExponential(2)}`
-  if (n < 0.01) return `$${n.toFixed(6)}`
-  return `$${n.toFixed(4)}`
-}
-
-function formatMarketCap(n: number) {
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
-  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`
-  return `$${n.toFixed(0)}`
+function formatReserve(n: string) {
+  const num = parseFloat(n)
+  if (!Number.isFinite(num)) return n
+  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`
+  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`
+  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`
+  return num.toLocaleString(undefined, { maximumFractionDigits: 4 })
 }
 
 export function CreateLock() {
@@ -136,7 +131,9 @@ export function CreateLock() {
   const [rawAddress, setRawAddress] = useState('')
   const [detecting, setDetecting] = useState(false)
   const [detected, setDetected] = useState<DetectedAsset | null>(null)
+  const [detectError, setDetectError] = useState('')
   const detectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const detectRequestId = useRef(0)
 
   // Lock params
   const [tab, setTab] = useState<AssetTab>('lp')
@@ -145,6 +142,7 @@ export function CreateLock() {
   const [amount, setAmount] = useState('')
   const [beneficiary, setBeneficiary] = useState('')
   const [unlockDate, setUnlockDate] = useState('')
+  const [cliffDate, setCliffDate] = useState('')
   const [vestingEnd, setVestingEnd] = useState('')
   const [vestingInterval, setVestingInterval] = useState('Monthly')
   const [permanent, setPermanent] = useState(false)
@@ -152,9 +150,9 @@ export function CreateLock() {
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
 
-  // Social profile
+  // Social profile — entirely user-supplied. Nothing here is ever auto-filled
+  // from a lookup; there is no registry of "known projects" to guess from.
   const [socialExpanded, setSocialExpanded] = useState(false)
-  const [profileFound, setProfileFound] = useState(false)
   const [social, setSocial] = useState<SocialProfile>(EMPTY_PROFILE)
 
   // Image upload state
@@ -174,10 +172,10 @@ export function CreateLock() {
   const selectedApiChain = apiChains.find(c => c.id === chain.id)
   const lockerAddress = selectedApiChain?.contractAddress || ''
 
-  // Derived asset address from detection + tab
-  const asset = detected
-    ? (tab === 'lp' && detected.lp ? detected.lp.address : detected.token.address)
-    : ''
+  // Derived asset address from detection. A given address is unambiguously
+  // either a pair or a plain token on-chain — there is no "choice" between the
+  // two the way the old mock data pretended there was.
+  const asset = detected ? (detected.pair ? detected.pair.address : detected.token!.address) : ''
 
   // Wallet balance for the selected asset
   const { data: tokenBalance, isLoading: balanceLoading } = useBalance({
@@ -190,7 +188,10 @@ export function CreateLock() {
     api.chains().then(data => setApiChains(mergeWithApiChains(data))).catch(() => setApiChains([]))
   }, [])
 
-  // Debounced address detection
+  // Debounced address detection — performs a real RPC lookup against the
+  // selected chain (ERC20 read for tokens, token0/token1/getReserves for LP
+  // pairs). No fabricated data: an address that doesn't resolve to either on
+  // this chain surfaces a clear error instead of guessing.
   useEffect(() => {
     if (detectTimer.current) clearTimeout(detectTimer.current)
     const addr = rawAddress.trim()
@@ -198,50 +199,35 @@ export function CreateLock() {
     if (addr.length < 42) {
       setDetected(null)
       setDetecting(false)
+      setDetectError('')
       return
     }
 
     setDetecting(true)
+    setDetectError('')
     detectTimer.current = setTimeout(() => {
-      const result = detectAsset(addr)
-      setDetected(result)
-      setDetecting(false)
-
-      if (result) {
-        // Default to LP if LP pair exists, otherwise token
-        setTab(result.lp ? 'lp' : 'token')
-
-        // Handle social profile restoration
-        if (result.profile) {
-          setProfileFound(true)
-          setSocialExpanded(true)
-          setSocial({
-            logo: result.profile.logo,
-            banner: result.profile.banner,
-            website: result.profile.website,
-            twitter: result.profile.twitter,
-            telegram: result.profile.telegram,
-            discord: result.profile.discord,
-            description: result.profile.description,
-          })
-          // If profile has stored images, mark upload slots as done
-          setLogoUpload(result.profile.logo ? 'done' : 'idle')
-          setBannerUpload(result.profile.banner ? 'done' : 'idle')
-          setLogoMeta(null)
-          setBannerMeta(null)
-        } else {
-          setProfileFound(false)
-          setSocial(EMPTY_PROFILE)
-          setLogoUpload('idle')
-          setBannerUpload('idle')
-          setLogoMeta(null)
-          setBannerMeta(null)
-        }
-      }
+      const requestId = ++detectRequestId.current
+      detectAssetOnChain(addr, selectedChain)
+        .then(result => {
+          if (requestId !== detectRequestId.current) return // stale response (chain/address changed since)
+          setDetected(result)
+          setDetecting(false)
+          if (result) {
+            setTab(result.pair ? 'lp' : 'token')
+          } else {
+            setDetectError(`Not a recognized token or LP pair on ${selectedChain.name}`)
+          }
+        })
+        .catch(() => {
+          if (requestId !== detectRequestId.current) return
+          setDetected(null)
+          setDetecting(false)
+          setDetectError('Failed to read this address — check your connection and try again')
+        })
     }, 700)
 
     return () => { if (detectTimer.current) clearTimeout(detectTimer.current) }
-  }, [rawAddress])
+  }, [rawAddress, selectedChain])
 
   async function handleImageUpload(field: 'logo' | 'banner', file: File) {
     const isLogo = field === 'logo'
@@ -255,14 +241,21 @@ export function CreateLock() {
     setUpload('compressing')
     try {
       const result = await compressImage(file, maxW, maxH)
+      // Show the compressed image immediately while the real upload is in flight.
       setSocial(s => ({ ...s, [field]: result.dataUrl }))
       setMeta({
         name: file.name,
         originalKB: Math.round(result.originalBytes / 1024),
         compressedKB: Math.round(result.compressedBytes / 1024),
       })
+      setUpload('uploading')
+      const hostedUrl = await uploadImage(result.dataUrl)
+      // Swap the preview to the real hosted URL — this is what actually gets
+      // submitted in the lock's metadata, never the raw base64 blob.
+      setSocial(s => ({ ...s, [field]: hostedUrl }))
       setUpload('done')
     } catch (err) {
+      setSocial(s => ({ ...s, [field]: '' }))
       setErr(err instanceof Error ? err.message : 'Upload failed')
       setUpload('error')
     }
@@ -274,9 +267,46 @@ export function CreateLock() {
     else { setBannerUpload('idle'); setBannerMeta(null); setBannerErr(''); if (bannerInputRef.current) bannerInputRef.current.value = '' }
   }
 
+  function buildMetadataURI(): string {
+    const name = detected?.pair
+      ? `${detected.pair.token0.symbol}/${detected.pair.token1.symbol}`
+      : detected?.token?.name || ''
+    const symbol = detected?.pair
+      ? `${detected.pair.token0.symbol}/${detected.pair.token1.symbol}`
+      : detected?.token?.symbol || ''
+    const meta = {
+      name, symbol,
+      logo: social.logo || undefined,
+      banner: social.banner || undefined,
+      website: social.website || undefined,
+      twitter: social.twitter || undefined,
+      telegram: social.telegram || undefined,
+      discord: social.discord || undefined,
+      description: social.description || undefined,
+    }
+    // Skip embedding anything if the user left every optional field empty.
+    const hasContent = Object.entries(meta).some(([key, v]) => key !== 'name' && key !== 'symbol' && v)
+    if (!hasContent) return ''
+    const json = JSON.stringify(meta)
+    return `data:application/json;base64,${btoa(unescape(encodeURIComponent(json)))}`
+  }
+
   async function submitLock() {
     try {
       setError('')
+
+      if (logoUpload === 'compressing' || logoUpload === 'uploading') throw new Error('Wait for the logo upload to finish')
+      if (bannerUpload === 'compressing' || bannerUpload === 'uploading') throw new Error('Wait for the banner upload to finish')
+
+      if (!permanent && mode === 'vesting') {
+        if (!cliffDate) throw new Error('Cliff date is required for vesting locks')
+        if (!vestingEnd) throw new Error('Vesting end date is required')
+        if (dateToUnix(cliffDate) > dateToUnix(vestingEnd)) throw new Error('Cliff date must be on or before the vesting end date')
+      }
+      if (!permanent && mode === 'cliff' && !unlockDate) {
+        throw new Error('Unlock date is required')
+      }
+
       setStatus('Connecting wallet...')
       const wallet = await connectWallet()
       if (wallet.chainId !== selectedChain.id) {
@@ -298,10 +328,10 @@ export function CreateLock() {
         isLpToken: tab === 'lp',
         isVesting: !permanent && mode === 'vesting',
         unlockTime: permanent ? minPermanentUnlock : dateToUnix(unlockDate),
-        cliffTime: !permanent && mode === 'vesting' ? now + 7 * 24 * 60 * 60 : undefined,
+        cliffTime: !permanent && mode === 'vesting' ? dateToUnix(cliffDate) : undefined,
         endTime: !permanent && mode === 'vesting' ? dateToUnix(vestingEnd) : undefined,
         vestingInterval: VESTING_SECONDS[vestingInterval],
-        metadataURI: '',
+        metadataURI: buildMetadataURI(),
         permanent,
       })
       setStatus('Waiting for confirmation...')
@@ -418,9 +448,29 @@ export function CreateLock() {
                 )}
               </div>
               <div style={{ fontSize: 11, color: 'var(--dim)', marginTop: 6 }}>
-                Both token and LP pair addresses work. We'll detect what it is and show you both options.
+                Paste a token contract or a Uniswap V2-style LP pair address — we read it directly from {selectedChain.name} to identify which one it is.
               </div>
             </div>
+
+            {/* Detection error */}
+            <AnimatePresence>
+              {detectError && !detecting && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: -4, height: 0 }}
+                  transition={{ duration: 0.25 }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div style={{
+                    marginTop: 14, border: '1px solid rgba(239,68,68,0.35)', borderRadius: 10,
+                    background: 'rgba(239,68,68,0.06)', padding: '10px 14px', fontSize: 12.5, color: 'var(--danger)',
+                  }}>
+                    {detectError}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Detected asset card */}
             <AnimatePresence>
@@ -439,93 +489,79 @@ export function CreateLock() {
                     background: 'rgba(217, 173, 74,0.05)',
                     padding: 14,
                   }}>
-                    {/* Token info */}
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-                      <div
-                        className="asset-avatar"
-                        style={{ width: 40, height: 40, background: '#242018', color: '#f1cb73', fontSize: 14, fontWeight: 700, flexShrink: 0 }}
-                      >
-                        {detected.token.symbol.slice(0, 2)}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{detected.token.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--dim)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <span>{detected.token.symbol}</span>
-                          <span>·</span>
-                          <span>{detected.token.chain}</span>
-                          <span>·</span>
-                          <span style={{ fontFamily: 'monospace' }}>{rawAddress.slice(0, 6)}...{rawAddress.slice(-4)}</span>
+                    {detected.token && (
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <div
+                          className="asset-avatar"
+                          style={{ width: 40, height: 40, background: '#242018', color: '#f1cb73', fontSize: 14, fontWeight: 700, flexShrink: 0 }}
+                        >
+                          {detected.token.symbol.slice(0, 2)}
                         </div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{formatPrice(detected.token.priceUsd)}</div>
-                        <div style={{ fontSize: 11, color: 'var(--dim)' }}>{formatMarketCap(detected.token.marketCapUsd)} mcap</div>
-                      </div>
-                    </div>
-
-                    {/* LP pair info */}
-                    {detected.lp && (
-                      <div style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        borderRadius: 7,
-                        padding: '8px 11px',
-                        fontSize: 12,
-                        color: 'var(--muted)',
-                        marginBottom: 12,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}>
-                        <span>
-                          LP: <strong style={{ color: 'var(--text)' }}>{detected.lp.token0Symbol}/{detected.lp.token1Symbol}</strong>
-                          {' '}on <strong style={{ color: 'var(--text)' }}>{detected.lp.dex}</strong>
-                        </span>
-                        <span style={{ color: 'var(--dim)' }}>TVL {formatMarketCap(detected.lp.tvlUsd)}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{detected.token.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--dim)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <span>{detected.token.symbol}</span>
+                            <span>·</span>
+                            <span>{selectedChain.name}</span>
+                            <span>·</span>
+                            <span style={{ fontFamily: 'monospace' }}>{rawAddress.slice(0, 6)}...{rawAddress.slice(-4)}</span>
+                          </div>
+                        </div>
+                        <div style={{
+                          fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
+                          background: 'rgba(217, 173, 74,0.12)', color: 'var(--accent)', flexShrink: 0,
+                        }}>
+                          TOKEN
+                        </div>
                       </div>
                     )}
 
-                    {/* Lock type selector */}
-                    <div style={{ fontSize: 11, color: 'var(--dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                      What do you want to lock?
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        onClick={() => setTab('token')}
-                        style={{
-                          flex: 1,
-                          padding: '9px 12px',
-                          borderRadius: 8,
-                          border: `1px solid ${tab === 'token' ? 'var(--accent)' : 'var(--border)'}`,
-                          background: tab === 'token' ? 'rgba(217, 173, 74,0.15)' : 'transparent',
-                          color: tab === 'token' ? 'var(--accent)' : 'var(--muted)',
-                          fontWeight: tab === 'token' ? 700 : 400,
-                          cursor: 'pointer',
-                          fontSize: 13,
-                          transition: 'all 150ms',
-                        }}
-                      >
-                        Token ({detected.token.symbol})
-                      </button>
-                      {detected.lp && (
-                        <button
-                          onClick={() => setTab('lp')}
-                          style={{
-                            flex: 1,
-                            padding: '9px 12px',
-                            borderRadius: 8,
-                            border: `1px solid ${tab === 'lp' ? 'var(--accent)' : 'var(--border)'}`,
-                            background: tab === 'lp' ? 'rgba(217, 173, 74,0.15)' : 'transparent',
-                            color: tab === 'lp' ? 'var(--accent)' : 'var(--muted)',
-                            fontWeight: tab === 'lp' ? 700 : 400,
-                            cursor: 'pointer',
-                            fontSize: 13,
-                            transition: 'all 150ms',
-                          }}
-                        >
-                          LP ({detected.lp.token0Symbol}/{detected.lp.token1Symbol})
-                        </button>
-                      )}
-                    </div>
+                    {detected.pair && (
+                      <div>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          <div
+                            className="asset-avatar"
+                            style={{ width: 40, height: 40, background: '#242018', color: '#f1cb73', fontSize: 12, fontWeight: 700, flexShrink: 0 }}
+                          >
+                            {detected.pair.token0.symbol.slice(0, 1)}{detected.pair.token1.symbol.slice(0, 1)}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>
+                              {detected.pair.token0.symbol} / {detected.pair.token1.symbol}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--dim)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              <span>LP Pair</span>
+                              <span>·</span>
+                              <span>{selectedChain.name}</span>
+                              <span>·</span>
+                              <span style={{ fontFamily: 'monospace' }}>{rawAddress.slice(0, 6)}...{rawAddress.slice(-4)}</span>
+                            </div>
+                          </div>
+                          <div style={{
+                            fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
+                            background: 'rgba(217, 173, 74,0.12)', color: 'var(--accent)', flexShrink: 0,
+                          }}>
+                            LP PAIR
+                          </div>
+                        </div>
+                        <div style={{
+                          marginTop: 10, background: 'rgba(221, 179, 83,0.05)', borderRadius: 7, padding: '8px 11px',
+                          fontSize: 12, color: 'var(--muted)', display: 'flex', justifyContent: 'space-between', gap: 10,
+                        }}>
+                          <span>Pool reserves (read live from the chain, not priced):</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                          <div style={{ flex: 1, background: 'var(--bg-2)', borderRadius: 7, padding: '8px 10px', fontSize: 12 }}>
+                            <span style={{ color: 'var(--dim)' }}>{detected.pair.token0.symbol}</span>{' '}
+                            <strong style={{ color: 'var(--text)' }}>{formatReserve(detected.pair.reserve0)}</strong>
+                          </div>
+                          <div style={{ flex: 1, background: 'var(--bg-2)', borderRadius: 7, padding: '8px 10px', fontSize: 12 }}>
+                            <span style={{ color: 'var(--dim)' }}>{detected.pair.token1.symbol}</span>{' '}
+                            <strong style={{ color: 'var(--text)' }}>{formatReserve(detected.pair.reserve1)}</strong>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -640,6 +676,28 @@ export function CreateLock() {
 
               {!permanent && mode === 'vesting' && (
                 <>
+                  <div className="field form-full" style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px',
+                    background: 'rgba(221, 179, 83,0.05)', border: '1px solid var(--border)', borderRadius: 8,
+                  }}>
+                    <Info size={13} color="var(--accent)" style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      Vesting starts the moment this transaction confirms — there's no separate start date to set.
+                    </span>
+                  </div>
+
+                  <div className="field">
+                    <label>Cliff Date</label>
+                    <input
+                      type="date"
+                      value={cliffDate}
+                      onChange={e => setCliffDate(e.target.value)}
+                    />
+                    <div style={{ fontSize: 11, color: 'var(--dim)', marginTop: 5 }}>
+                      Nothing can be withdrawn before this date, even once vesting math says some has accrued.
+                    </div>
+                  </div>
+
                   <div className="field">
                     <label>Vesting End Date</label>
                     <input
@@ -647,12 +705,25 @@ export function CreateLock() {
                       value={vestingEnd}
                       onChange={e => setVestingEnd(e.target.value)}
                     />
+                    <div style={{ fontSize: 11, color: 'var(--dim)', marginTop: 5 }}>
+                      The full amount is unlocked (100% vested) by this date.
+                    </div>
                   </div>
-                  <div className="field">
-                    <label>Vesting Interval</label>
+
+                  <div className="field form-full">
+                    <label>Unlock Interval</label>
                     <select value={vestingInterval} onChange={e => setVestingInterval(e.target.value)}>
                       {VESTINGS.map(v => <option key={v}>{v}</option>)}
                     </select>
+                    <div style={{ fontSize: 11, color: 'var(--dim)', marginTop: 5 }}>
+                      {vestingEnd ? (() => {
+                        const durationSeconds = dateToUnix(vestingEnd) - Math.floor(Date.now() / 1000)
+                        const intervalSeconds = VESTING_SECONDS[vestingInterval]
+                        if (durationSeconds <= 0) return 'Vesting end date must be in the future.'
+                        const pct = Math.min(100, (intervalSeconds / durationSeconds) * 100)
+                        return `Vesting is linear and calculated in ${vestingInterval.toLowerCase()} steps — roughly ${pct.toFixed(1)}% of the total becomes newly withdrawable each step, once past the cliff.`
+                      })() : 'Set a vesting end date to see how much unlocks per interval.'}
+                    </div>
                   </div>
                 </>
               )}
@@ -689,24 +760,6 @@ export function CreateLock() {
                   transition={{ duration: 0.22 }}
                   style={{ overflow: 'hidden' }}
                 >
-                  {profileFound && (
-                    <div style={{
-                      marginTop: 14,
-                      padding: '10px 14px',
-                      borderRadius: 8,
-                      background: 'rgba(34,197,94,0.07)',
-                      border: '1px solid rgba(34,197,94,0.25)',
-                      display: 'flex',
-                      gap: 8,
-                      alignItems: 'center',
-                    }}>
-                      <CheckCircle size={14} color="var(--success)" />
-                      <div style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>
-                        Profile restored from a previous lock on this contract. Edit any fields below.
-                      </div>
-                    </div>
-                  )}
-
                   <div style={{ marginTop: 14 }}>
                     {/* Hidden file inputs */}
                     <input ref={logoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload('logo', f) }} />
@@ -750,7 +803,7 @@ export function CreateLock() {
                               background: 'rgba(255,255,255,0.02)',
                             }}
                           >
-                            {logoUpload === 'compressing' ? (
+                            {logoUpload === 'compressing' || logoUpload === 'uploading' ? (
                               <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} style={{ display: 'flex' }}>
                                 <Loader2 size={18} color="var(--accent)" />
                               </motion.span>
@@ -802,12 +855,12 @@ export function CreateLock() {
                               background: 'rgba(255,255,255,0.02)',
                             }}
                           >
-                            {bannerUpload === 'compressing' ? (
+                            {bannerUpload === 'compressing' || bannerUpload === 'uploading' ? (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} style={{ display: 'flex' }}>
                                   <Loader2 size={16} color="var(--accent)" />
                                 </motion.span>
-                                <span style={{ fontSize: 12, color: 'var(--dim)' }}>Compressing...</span>
+                                <span style={{ fontSize: 12, color: 'var(--dim)' }}>{bannerUpload === 'compressing' ? 'Compressing...' : 'Uploading...'}</span>
                               </div>
                             ) : (
                               <>
@@ -916,11 +969,11 @@ export function CreateLock() {
                     </div>
                   ) : (
                     <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#242018', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#f1cb73' }}>{detected?.token.symbol.slice(0, 2) || '?'}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#f1cb73' }}>{(detected?.token?.symbol || detected?.pair?.token0.symbol || '?').slice(0, 2)}</span>
                     </div>
                   )}
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{detected?.token.name || 'Project'}</div>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{detected?.token?.name || (detected?.pair ? `${detected.pair.token0.symbol}/${detected.pair.token1.symbol}` : 'Project')}</div>
                     {social.website && (
                       <div style={{ fontSize: 11, color: 'var(--accent)' }}>{social.website.replace(/^https?:\/\//, '')}</div>
                     )}
@@ -973,8 +1026,11 @@ export function CreateLock() {
             </div>
             {detected && (
               <div className="summary-row">
-                <span className="summary-row-label">Token</span>
-                <span className="summary-row-val">{detected.token.symbol} ({detected.token.chain})</span>
+                <span className="summary-row-label">{detected.pair ? 'Pair' : 'Token'}</span>
+                <span className="summary-row-val">
+                  {detected.pair ? `${detected.pair.token0.symbol}/${detected.pair.token1.symbol}` : detected.token!.symbol}
+                  {' '}({selectedChain.name})
+                </span>
               </div>
             )}
             <div className="summary-row">

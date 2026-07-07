@@ -93,6 +93,8 @@ jobs:
 
             # ── Persist the API env file (only the RPC/address values change
             #    across runs; the DB password is generated once and kept) ──
+            UPLOADS_DIR="$SHARED_ROOT/uploads"
+            mkdir -p "$UPLOADS_DIR"
             cat > "$API_ENV_FILE" <<ENVEOF
             NODE_ENV=production
             PORT=$API_PORT
@@ -101,6 +103,7 @@ jobs:
             ROBINHOOD_LOCKER_ADDRESS=0x0372a1AE860CDc9357ac6bc8e9F97856b37B80Ed
             INDEXER_BATCH_SIZE=2000
             INDEXER_CONFIRMATIONS=12
+            UPLOADS_DIR=$UPLOADS_DIR
             ENVEOF
             chmod 600 "$API_ENV_FILE"
             ln -sfn "$API_ENV_FILE" "$RELEASE_DIR/api/.env"

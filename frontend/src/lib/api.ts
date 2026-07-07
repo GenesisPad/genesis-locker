@@ -1,5 +1,20 @@
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4010'
 
+/** Uploads a compressed image data URL to the API and returns its permanent hosted URL. */
+export async function uploadImage(dataUrl: string): Promise<string> {
+  const response = await fetch(`${API_BASE}/v1/uploads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dataUrl }),
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}))
+    throw new Error(body.error || `Upload failed (${response.status})`)
+  }
+  const { url } = await response.json() as { url: string }
+  return `${API_BASE}${url}`
+}
+
 export type ChainInfo = {
   id: number
   name: string

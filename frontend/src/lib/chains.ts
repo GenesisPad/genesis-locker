@@ -29,6 +29,14 @@ export const robinhood = defineChain({
   },
 })
 
+// viem/chains ships each chain with a default public RPC (e.g. mainnet's is
+// eth.merkle.io) that is unreliable/unreachable from some networks — that
+// silently breaks on-chain reads (asset detection, balances) with no clear
+// error. Overriding with PublicNode's endpoints, which have proven reliable.
+const ethereum: Chain = { ...mainnet, rpcUrls: { default: { http: ['https://ethereum-rpc.publicnode.com'] } } }
+const baseChain: Chain = { ...base, rpcUrls: { default: { http: ['https://base-rpc.publicnode.com'] } } }
+const bnbChain: Chain = { ...bsc, rpcUrls: { default: { http: ['https://bsc-rpc.publicnode.com'] } } }
+
 // ── Static chain registry ──────────────────────────────────────────────────
 
 export type ChainConfig = {
@@ -66,7 +74,7 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     feeLabel: '0.01 ETH',
     geckoTerminalId: 'eth',
     explorerUrl: 'https://etherscan.io',
-    wagmiChain: mainnet,
+    wagmiChain: ethereum,
   },
   {
     id: 8453,
@@ -76,7 +84,7 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     feeLabel: '0.01 ETH',
     geckoTerminalId: 'base',
     explorerUrl: 'https://basescan.org',
-    wagmiChain: base,
+    wagmiChain: baseChain,
   },
   {
     id: 56,
@@ -86,7 +94,7 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     feeLabel: '0.03 BNB',
     geckoTerminalId: 'bsc',
     explorerUrl: 'https://bscscan.com',
-    wagmiChain: bsc,
+    wagmiChain: bnbChain,
   },
   // Local dev chain — only included when running Vite in dev mode.
   ...(import.meta.env.DEV
