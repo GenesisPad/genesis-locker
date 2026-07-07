@@ -103,6 +103,8 @@ jobs:
             fi
 
             # ── Smoke test ─────────────────────────────────────────────────
+            # Query HTTPS directly (certbot adds an HTTP->HTTPS redirect), pinning
+            # the domain to localhost so we test this box specifically.
             sleep 2
-            curl -fsS -H "Host: $DOMAIN" "http://127.0.0.1/" | grep -q "Genesis Locker"
+            curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" | grep -q "Genesis Locker"
             echo "Deployed $RELEASE_ID to https://$DOMAIN"
