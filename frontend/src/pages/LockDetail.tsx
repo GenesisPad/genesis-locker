@@ -19,6 +19,13 @@ function CopyBtn({ value }: { value: string }) {
   )
 }
 
+// Matches the severity mapping in RiskBadge's RISK_BADGES legend, so a given
+// flag reads the same color everywhere it appears in the app.
+const DANGER_WARNINGS = new Set(['Mint Risk', 'High Tax Risk', 'Blacklist Risk', 'Ownership Not Renounced'])
+function warningLevel(label: string): 'warning' | 'danger' {
+  return DANGER_WARNINGS.has(label) ? 'danger' : 'warning'
+}
+
 function pctProgress(lock: ApiLock) {
   if (lock.isPermanent || !lock.unlockDate) return 100
   const start = new Date(lock.startDate).getTime()
@@ -35,7 +42,10 @@ export function LockDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionStatus, setActionStatus] = useState('')
-  const [actionValue, setActionValue] = useState('')
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
+  const [extendDate, setExtendDate] = useState('')
+  const [addAmount, setAddAmount] = useState('')
+  const [newOwner, setNewOwner] = useState('')
 
   useEffect(() => {
     const finalChainId = Number(chainId || 1)
@@ -56,28 +66,41 @@ export function LockDetail() {
     if (!lock) return
     try {
       setError('')
-      if (action === 'extendLock' && !actionValue) throw new Error('Enter a new unlock date first')
-      if (action === 'transferLockOwnership' && !actionValue) throw new Error('Enter the new owner address first')
-      if (action === 'increaseLockAmount' && !actionValue) throw new Error('Enter an amount to add first')
-
-      let value: string | number | undefined = actionValue
+      let value: string | number | undefined
       if (action === 'extendLock') {
-        const parsed = Math.floor(new Date(`${actionValue}T00:00:00`).getTime() / 1000)
-        if (!Number.isFinite(parsed)) throw new Error('Invalid date - use YYYY-MM-DD')
+        if (!extendDate) throw new Error('Pick a new unlock date first')
+        const parsed = Math.floor(new Date(`${extendDate}T00:00:00`).getTime() / 1000)
+        if (!Number.isFinite(parsed)) throw new Error('Invalid date')
         value = parsed
+      } else if (action === 'increaseLockAmount') {
+        if (!addAmount) throw new Error('Enter an amount to add first')
+        value = addAmount
+      } else if (action === 'transferLockOwnership') {
+        if (!newOwner) throw new Error('Enter the new owner address first')
+        value = newOwner
       }
 
+      setPendingAction(action)
       setActionStatus('Submitting transaction...')
       const tokenInfo = action === 'increaseLockAmount' ? { tokenAddress: lock.assetAddress, decimals: lock.token?.decimals ?? 18 } : undefined
       const tx = await manageLockTransaction(lock.contractAddress, action, lock.lockId, value, tokenInfo)
       setActionStatus('Waiting for confirmation...')
       await tx.wait()
-      setActionStatus('Transaction confirmed. Run the indexer to refresh this proof page.')
+      setActionStatus('Transaction confirmed. This page updates within a few minutes.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Transaction failed')
       setActionStatus('')
+    } finally {
+      setPendingAction(null)
     }
   }
+
+  const minExtendDate = useMemo(() => {
+    if (!lock?.unlockDate) return undefined
+    const d = new Date(lock.unlockDate)
+    d.setDate(d.getDate() + 1)
+    return d.toISOString().slice(0, 10)
+  }, [lock])
 
   if (loading) return <div className="lock-detail-page"><div className="form-alert">Loading lock proof...</div></div>
   if (!lock) return <div className="lock-detail-page"><div className="form-alert error">{error || 'Lock not found'}</div></div>
@@ -107,7 +130,7 @@ export function LockDetail() {
         >
           {metadata.logo && (
             <div style={{ width: 56, height: 56, borderRadius: '50%', flexShrink: 0, border: '2px solid rgba(217, 173, 74,0.3)', overflow: 'hidden', background: '#242018' }}>
-              <img src={metadata.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={metadata.logo} alt={metadata.name || lock.token?.symbol || 'Project logo'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           )}
           <div style={{ flex: 1, minWidth: 200 }}>
@@ -119,22 +142,22 @@ export function LockDetail() {
             )}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {metadata.website && (
-                <a href={metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+                <a href={metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
                   <Globe size={10} /> {metadata.website.replace(/^https?:\/\//, '')}
                 </a>
               )}
               {metadata.twitter && (
-                <a href={metadata.twitter.startsWith('http') ? metadata.twitter : `https://x.com/${metadata.twitter.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+                <a href={metadata.twitter.startsWith('http') ? metadata.twitter : `https://x.com/${metadata.twitter.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
                   <Twitter size={10} /> X
                 </a>
               )}
               {metadata.telegram && (
-                <a href={metadata.telegram.startsWith('http') ? metadata.telegram : `https://${metadata.telegram}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+                <a href={metadata.telegram.startsWith('http') ? metadata.telegram : `https://${metadata.telegram}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
                   <MessageCircle size={10} /> Telegram
                 </a>
               )}
               {metadata.discord && (
-                <a href={metadata.discord.startsWith('http') ? metadata.discord : `https://${metadata.discord}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+                <a href={metadata.discord.startsWith('http') ? metadata.discord : `https://${metadata.discord}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
                   <Hash size={10} /> Discord
                 </a>
               )}
@@ -193,19 +216,68 @@ export function LockDetail() {
 
         <div className="detail-card" style={{ marginBottom: 16 }}>
           <div className="detail-card-label">Wallet Actions</div>
-          <div style={{ fontSize: 11.5, color: 'var(--dim)', marginBottom: 10 }}>
+          <div style={{ fontSize: 11.5, color: 'var(--dim)', marginBottom: 14 }}>
             Only the lock owner ({shortAddress(lock.owner)}) can extend, add amount, permanently lock, or transfer. Only the beneficiary ({shortAddress(lock.beneficiary)}) can withdraw claimable tokens.
           </div>
           {(error || actionStatus) && (
-            <div className={`form-alert${error ? ' error' : ''}`} style={{ marginBottom: 12 }}>{error || actionStatus}</div>
+            <div className={`form-alert${error ? ' error' : ''}`} style={{ marginBottom: 14 }}>{error || actionStatus}</div>
           )}
-          <div className="lock-badges-row" style={{ marginBottom: 12 }}>
-            <button className="btn-secondary" onClick={() => runAction('withdraw')}>Withdraw Claimable</button>
-            <button className="btn-secondary" onClick={() => runAction('permanentLock')}>Permanent Lock</button>
-            <input className="action-input" value={actionValue} onChange={e => setActionValue(e.target.value)} placeholder="Date (YYYY-MM-DD), amount, or new owner" />
-            <button className="btn-secondary" onClick={() => runAction('extendLock')}>Extend</button>
-            <button className="btn-secondary" onClick={() => runAction('increaseLockAmount')}>Add Amount</button>
-            <button className="btn-secondary" onClick={() => runAction('transferLockOwnership')}>Transfer</button>
+          <div className="action-rows">
+            <div className="action-row">
+              <button className="btn-secondary" disabled={!!pendingAction} onClick={() => runAction('withdraw')}>
+                {pendingAction === 'withdraw' ? 'Withdrawing…' : 'Withdraw Claimable'}
+              </button>
+              <button className="btn-secondary" disabled={!!pendingAction || lock.isPermanent} onClick={() => runAction('permanentLock')}>
+                {pendingAction === 'permanentLock' ? 'Locking…' : 'Permanent Lock'}
+              </button>
+            </div>
+            <div className="action-row">
+              <span className="action-row-label">Extend to</span>
+              <input
+                type="date"
+                className="action-input"
+                style={{ minWidth: 160 }}
+                value={extendDate}
+                min={minExtendDate}
+                onChange={e => setExtendDate(e.target.value)}
+                disabled={!!pendingAction || lock.isPermanent}
+              />
+              <button className="btn-secondary" disabled={!!pendingAction || lock.isPermanent} onClick={() => runAction('extendLock')}>
+                {pendingAction === 'extendLock' ? 'Extending…' : 'Extend'}
+              </button>
+            </div>
+            <div className="action-row">
+              <span className="action-row-label">Add amount</span>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                className="action-input"
+                style={{ minWidth: 160 }}
+                placeholder={`Amount in ${lock.token?.symbol || 'tokens'}`}
+                value={addAmount}
+                onChange={e => setAddAmount(e.target.value)}
+                disabled={!!pendingAction || lock.isPermanent}
+              />
+              <button className="btn-secondary" disabled={!!pendingAction || lock.isPermanent} onClick={() => runAction('increaseLockAmount')}>
+                {pendingAction === 'increaseLockAmount' ? 'Adding…' : 'Add Amount'}
+              </button>
+            </div>
+            <div className="action-row">
+              <span className="action-row-label">New owner</span>
+              <input
+                type="text"
+                className="action-input"
+                style={{ minWidth: 260, fontFamily: "'SF Mono', 'Fira Code', monospace" }}
+                placeholder="0x..."
+                value={newOwner}
+                onChange={e => setNewOwner(e.target.value)}
+                disabled={!!pendingAction}
+              />
+              <button className="btn-secondary" disabled={!!pendingAction} onClick={() => runAction('transferLockOwnership')}>
+                {pendingAction === 'transferLockOwnership' ? 'Transferring…' : 'Transfer'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -213,7 +285,7 @@ export function LockDetail() {
           <div className="detail-card-label">Risk Assessment</div>
           <div className="lock-badges-row">
             {lock.badges.map(badge => <RiskBadge key={badge} level="success" label={badge} />)}
-            {warnings.map(warning => <RiskBadge key={warning} level="warning" label={warning} />)}
+            {warnings.map(warning => <RiskBadge key={warning} level={warningLevel(warning)} label={warning} />)}
           </div>
         </div>
 

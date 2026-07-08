@@ -553,6 +553,14 @@ img, video, canvas, svg { max-width: 100%; }
   transform: translateY(-1px);
 }
 
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  background: transparent;
+  border-color: var(--border);
+}
+
 /* Lock Illustration */
 .lock-visual {
   position: relative;
@@ -1698,9 +1706,9 @@ img, video, canvas, svg { max-width: 100%; }
   top: 0;
   bottom: 0;
   width: 4px;
-  background: #fff;
+  background: var(--accent-2);
   border-radius: 2px;
-  opacity: 0.6;
+  opacity: 0.75;
 }
 
 .time-remaining {
@@ -1726,6 +1734,31 @@ img, video, canvas, svg { max-width: 100%; }
   padding: 9px 12px;
   font-size: 12px;
   outline: none;
+}
+
+.action-input:focus-visible {
+  border-color: rgba(221, 179, 83, 0.4);
+}
+
+.action-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.action-row-label {
+  width: 110px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
 }
 
 /* ============================================================
@@ -2701,6 +2734,17 @@ img, video, canvas, svg { max-width: 100%; }
   }
   .action-input {
     min-width: 0;
+  }
+  .action-row {
+    align-items: stretch;
+  }
+  .action-row-label {
+    width: 100%;
+  }
+  .action-row .action-input,
+  .action-row .btn-secondary {
+    flex: 1;
+    width: auto;
   }
   .community-title { font-size: 24px; }
   .community-ledger-row { flex-direction: column; }
