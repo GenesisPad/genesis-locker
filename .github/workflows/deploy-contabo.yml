@@ -5,10 +5,11 @@ name: Deploy to Contabo
 #
 # SAFETY: this workflow is scoped strictly to genesis-locker. It only ever
 # writes /var/www/genesis-locker, one Postgres role+database named
-# genesis_locker, one pm2 process named genesis-locker-api, one cron entry
-# tagged genesis-locker-indexer, and one nginx server block for exactly
-# locker.genesispad.app. It NEVER touches, greps, moves, or deletes any other
-# project's files, databases, processes, or nginx configs.
+# genesis_locker, one pm2 process named genesis-locker-api, two cron entries
+# (genesis-locker-indexer, genesis-locker-price-refresh), and one nginx
+# server block for exactly locker.genesispad.app. It NEVER touches, greps,
+# moves, or deletes any other project's files, databases, processes, or
+# nginx configs.
 
 on:
   workflow_dispatch:
@@ -181,10 +182,16 @@ jobs:
             # existing DB rows on the next deploy instead of only affecting new locks.
             npm run backfill || true
 
-            # ── Cron the indexer (idempotent: replace only our tagged line) ─
-            CRON_TAG="genesis-locker-indexer"
-            CRON_LINE="*/2 * * * * cd $CURRENT_LINK/api && /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run index' >> $SHARED_ROOT/indexer.log 2>&1 # $CRON_TAG"
-            ( crontab -l 2>/dev/null | grep -v "$CRON_TAG" ; echo "$CRON_LINE" ) | crontab -
+            # ── Cron the indexer + price refresh (idempotent: replace only our
+            #    tagged lines) ────────────────────────────────────────────────
+            INDEXER_TAG="genesis-locker-indexer"
+            INDEXER_LINE="*/2 * * * * cd $CURRENT_LINK/api && /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run index' >> $SHARED_ROOT/indexer.log 2>&1 # $INDEXER_TAG"
+            # Prices only need to track the market, not every block - every 30
+            # minutes keeps TVL/USD values current without paying for an RPC
+            # call per asset every 2 minutes alongside the indexer.
+            PRICE_TAG="genesis-locker-price-refresh"
+            PRICE_LINE="*/30 * * * * cd $CURRENT_LINK/api && /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run refresh-prices' >> $SHARED_ROOT/price-refresh.log 2>&1 # $PRICE_TAG"
+            ( crontab -l 2>/dev/null | grep -v "$INDEXER_TAG" | grep -v "$PRICE_TAG" ; echo "$INDEXER_LINE" ; echo "$PRICE_LINE" ) | crontab -
 
             # ── nginx: extend our own site file only (SPA + API proxy) ──────
             NGINX_SITE=/etc/nginx/sites-available/genesis-locker

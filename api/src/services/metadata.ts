@@ -93,6 +93,24 @@ export async function syncAssetMetadata(chainId: number, assetAddress: string, a
     }
   });
 
+  await refreshAssetPrice(chainId, address, assetType, provider, totalSupply === null ? null : String(totalSupply));
+}
+
+/**
+ * Just the pricing half of syncAssetMetadata, without the identity/bytecode
+ * fetches (name, symbol, decimals, mint/tax/blacklist scan) - those rarely
+ * change, so a frequent price-refresh job shouldn't redo them. Safe to call
+ * on its own once a token/pair row already exists.
+ */
+export async function refreshAssetPrice(
+  chainId: number,
+  assetAddress: string,
+  assetType: AssetType,
+  provider: JsonRpcProvider,
+  knownTotalSupply?: string | null
+) {
+  const address = assetAddress.toLowerCase();
+
   if (assetType === AssetType.LP) {
     const pair = new Contract(address, pairAbi, provider);
     const [token0, token1] = await Promise.all([
@@ -109,13 +127,12 @@ export async function syncAssetMetadata(chainId: number, assetAddress: string, a
         address,
         token0: token0 ? String(token0).toLowerCase() : null,
         token1: token1 ? String(token1).toLowerCase() : null,
-        totalSupply: totalSupply === null ? null : String(totalSupply),
+        totalSupply: knownTotalSupply ?? null,
         reserveUsd: priced?.reserveUsd ?? null
       },
       update: {
         token0: token0 ? String(token0).toLowerCase() : undefined,
         token1: token1 ? String(token1).toLowerCase() : undefined,
-        totalSupply: totalSupply === null ? undefined : String(totalSupply),
         reserveUsd: priced?.reserveUsd ?? undefined
       }
     });
