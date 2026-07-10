@@ -224,8 +224,8 @@ export function Projects() {
           style={{
             fontSize: 12.5, color: 'var(--dim)', marginBottom: 20,
             padding: '10px 14px',
-            background: 'rgba(217, 173, 74,0.05)',
-            border: '1px solid rgba(217, 173, 74,0.15)',
+            background: 'rgba(213, 253, 81,0.05)',
+            border: '1px solid rgba(213, 253, 81,0.15)',
             borderRadius: 8,
             lineHeight: 1.55,
           }}
@@ -244,7 +244,7 @@ export function Projects() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
             {statItems.map(({ icon: Icon, label, value }) => (
               <div key={label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(217, 173, 74,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(213, 253, 81,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon size={15} color="var(--accent)" />
                 </div>
                 <div>
@@ -301,7 +301,7 @@ export function Projects() {
                         </td>
                         <td>
                           <div className="asset-cell">
-                            <div className="asset-avatar" style={{ background: a.assetType === 'lp' ? '#001840' : '#242018', color: a.assetType === 'lp' ? '#8fd6ac' : '#f1cb73', fontSize: 13, fontWeight: 700 }}>
+                            <div className="asset-avatar" style={{ background: a.assetType === 'lp' ? '#001840' : '#141a10', color: a.assetType === 'lp' ? '#8fd6ac' : '#e5feaa', fontSize: 13, fontWeight: 700 }}>
                               {a.symbol.slice(0, 2)}
                             </div>
                             <div>
@@ -334,7 +334,7 @@ export function Projects() {
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                             {a.isPermanent && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(34,197,94,0.12)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.25)', whiteSpace: 'nowrap' }}>Permanent</span>}
                             {a.hasMintRisk && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)', whiteSpace: 'nowrap' }}>Mint Risk</span>}
-                            {a.hasHighTaxRisk && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.1)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.2)', whiteSpace: 'nowrap' }}>High Tax</span>}
+                            {a.hasHighTaxRisk && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(225,183,92,0.1)', color: 'var(--warning)', border: '1px solid rgba(225,183,92,0.2)', whiteSpace: 'nowrap' }}>High Tax</span>}
                             {a.hasBlacklistRisk && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)', whiteSpace: 'nowrap' }}>Blacklist</span>}
                             {!a.isPermanent && !a.hasMintRisk && !a.hasHighTaxRisk && !a.hasBlacklistRisk && (
                               <span style={{ fontSize: 10, color: 'var(--dim)' }}>—</span>
@@ -397,7 +397,7 @@ export function Projects() {
                       <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)} style={{ cursor: 'pointer' }}>
                         <td>
                           <div className="asset-cell">
-                            <div className="asset-avatar" style={{ background: lock.assetType === 'lp' ? '#001840' : '#242018', color: lock.assetType === 'lp' ? '#8fd6ac' : '#f1cb73' }}>
+                            <div className="asset-avatar" style={{ background: lock.assetType === 'lp' ? '#001840' : '#141a10', color: lock.assetType === 'lp' ? '#8fd6ac' : '#e5feaa' }}>
                               {lockName(lock).slice(0, 2)}
                             </div>
                             <div>

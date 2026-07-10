@@ -13,10 +13,10 @@ import { getChainById } from '../lib/chains'
 
 const tooltipStyle = {
   background: '#141511', border: '1px solid rgba(221,179,83,0.14)',
-  borderRadius: 8, fontSize: 12, color: '#f3efe6',
+  borderRadius: 8, fontSize: 12, color: '#f7f9f7',
 }
 
-const CHAIN_DOT_COLORS = ['#d9ad4a', '#627EEA', '#0052FF', '#F3BA2F', '#22c55e']
+const CHAIN_DOT_COLORS = ['#d5fd51', '#627EEA', '#0052FF', '#F3BA2F', '#22c55e']
 
 function urgencyColor(days: number) {
   if (days <= 7) return 'var(--danger)'
@@ -130,7 +130,7 @@ export function Analytics() {
     if (!stats) return []
     return [
       { name: 'LP Locks', value: Number(stats.totalLpTvl || 0), color: '#8fd6ac' },
-      { name: 'Token Locks', value: Number(stats.totalTokenTvl || 0), color: '#f1cb73' },
+      { name: 'Token Locks', value: Number(stats.totalTokenTvl || 0), color: '#e5feaa' },
     ].filter(d => d.value > 0)
   }, [stats])
 
@@ -172,7 +172,7 @@ export function Analytics() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
           {stats ? overviewStats.map(({ icon: Icon, label, value }) => (
             <div key={label} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(217, 173, 74,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(213, 253, 81,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Icon size={13} color="var(--accent)" />
               </div>
               <div>
@@ -202,9 +202,9 @@ export function Analytics() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
               <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: '#706d66' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: '#706d66' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [(v as number).toLocaleString(), 'Locks']} cursor={{ fill: 'rgba(217, 173, 74,0.08)' }} />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [(v as number).toLocaleString(), 'Locks']} cursor={{ fill: 'rgba(213, 253, 81,0.08)' }} />
               <Bar dataKey="count" radius={[3, 3, 0, 0]}>
-                {durationData.map((d, i) => <Cell key={i} fill={d.bucket === 'Permanent' ? '#f1cb73' : '#d9ad4a'} />)}
+                {durationData.map((d, i) => <Cell key={i} fill={d.bucket === 'Permanent' ? '#e5feaa' : '#d5fd51'} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -322,7 +322,7 @@ export function Analytics() {
                     <td style={{ color: 'var(--dim)', fontSize: 12, fontWeight: 600, width: 28 }}>{i + 1}</td>
                     <td>
                       <div className="asset-cell">
-                        <div className="asset-avatar" style={{ background: a.assetType === 'lp' ? '#001840' : '#242018', color: a.assetType === 'lp' ? '#8fd6ac' : '#f1cb73', fontSize: 10 }}>
+                        <div className="asset-avatar" style={{ background: a.assetType === 'lp' ? '#001840' : '#141a10', color: a.assetType === 'lp' ? '#8fd6ac' : '#e5feaa', fontSize: 10 }}>
                           {a.symbol.slice(0, 3)}
                         </div>
                         <div className="asset-name">{a.symbol}</div>
@@ -371,7 +371,7 @@ export function Analytics() {
                   padding: '8px 10px', borderRadius: 6, cursor: 'pointer',
                   background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)',
                 }}>
-                  <div className="asset-avatar" style={{ background: 'rgba(217, 173, 74,0.1)', color: 'var(--accent)', fontSize: 9, width: 28, height: 28, borderRadius: 6, flexShrink: 0 }}>
+                  <div className="asset-avatar" style={{ background: 'rgba(213, 253, 81,0.1)', color: 'var(--accent)', fontSize: 9, width: 28, height: 28, borderRadius: 6, flexShrink: 0 }}>
                     {assetLabel(lock).slice(0, 2)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>

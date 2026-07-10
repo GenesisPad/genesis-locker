@@ -149,8 +149,8 @@ export function Admin() {
       {contract && isConnected && (
         <div style={{
           ...cardStyle,
-          borderColor: isOwner ? 'rgba(103,199,144,.4)' : 'rgba(245,158,11,.4)',
-          background: isOwner ? 'rgba(103,199,144,.06)' : 'rgba(245,158,11,.06)',
+          borderColor: isOwner ? 'rgba(55,213,159,.4)' : 'rgba(225,183,92,.4)',
+          background: isOwner ? 'rgba(55,213,159,.06)' : 'rgba(225,183,92,.06)',
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
           {isOwner ? <Check size={16} color="var(--success)" /> : <ShieldAlert size={16} color="var(--warning)" />}
@@ -261,10 +261,10 @@ function WriteRow({ label, hint, children }: { label: string; hint?: string; chi
 }
 
 const cardStyle: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 18, marginBottom: 16 }
-const h2Style: React.CSSProperties = { margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--accent-2, #f1cb73)' }
+const h2Style: React.CSSProperties = { margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--accent-2, #e5feaa)' }
 const fieldWrap: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 5 }
 const labelStyle: React.CSSProperties = { fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }
 const inputStyle: React.CSSProperties = { flex: 1, minWidth: 180, height: 38, padding: '0 12px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text)', fontSize: 13.5 }
-const goldBtn: React.CSSProperties = { height: 38, padding: '0 16px', background: 'linear-gradient(180deg,#f1cb73,#d9ad4a)', color: '#100d05', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer' }
+const goldBtn: React.CSSProperties = { height: 38, padding: '0 16px', background: 'linear-gradient(180deg,#e5feaa,#d5fd51)', color: '#100d05', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer' }
 const dangerBtn: React.CSSProperties = { height: 38, padding: '0 16px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer' }
 const ghostBtn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 12px', background: 'rgba(221,179,83,.06)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }

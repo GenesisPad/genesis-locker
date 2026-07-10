@@ -14,7 +14,7 @@ function formatCreationFee(chain: ChainInfo, fallback: string): string {
 }
 
 const CHAIN_STYLE: Record<number, { tag: string; color: string; bg: string; desc: string; fee: string }> = {
-  4663: { tag: 'RH', color: '#d9ad4a', bg: '#201a08', desc: "Genesis Locker's primary chain — Robinhood Chain, home of the GenesisPad ecosystem.", fee: '0.01 ETH' },
+  4663: { tag: 'RH', color: '#d5fd51', bg: '#131a08', desc: "Genesis Locker's primary chain — Robinhood Chain, home of the GenesisPad ecosystem.", fee: '0.01 ETH' },
   1: { tag: 'ETH', color: '#627EEA', bg: '#0d1240', desc: 'The original smart contract platform. Maximum security and decentralization.', fee: '0.01 ETH' },
   8453: { tag: 'BASE', color: '#0052FF', bg: '#000d24', desc: 'Coinbase L2 built on the OP Stack. Low fees, Ethereum security.', fee: '0.01 ETH' },
   56: { tag: 'BNB', color: '#F3BA2F', bg: '#1a1300', desc: 'High-throughput EVM chain with low fees and large DeFi ecosystem.', fee: '0.03 BNB' },
@@ -48,7 +48,7 @@ export function Chains() {
               </div>
               <div className="chain-card-name">{chain.name}</div>
               <div className="chain-card-sub">{style.desc}</div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 'var(--r-pill)', background: contract?.address ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.08)', border: '1px solid rgba(34,197,94,0.2)', fontSize: 10.5, fontWeight: 700, color: contract?.address ? 'var(--success)' : 'var(--warning)', marginBottom: 14 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 'var(--r-pill)', background: contract?.address ? 'rgba(34,197,94,0.08)' : 'rgba(225,183,92,0.08)', border: '1px solid rgba(34,197,94,0.2)', fontSize: 10.5, fontWeight: 700, color: contract?.address ? 'var(--success)' : 'var(--warning)', marginBottom: 14 }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: contract?.address ? 'var(--success)' : 'var(--warning)' }} />
                 {contract?.address ? 'Configured' : 'Awaiting Deployment'}
               </div>

@@ -30,20 +30,20 @@ export function BadgeEmbed() {
           }
           .badge {
             display: inline-flex; align-items: center; gap: 10px;
-            background: #10110f; border: 1px solid rgba(217, 173, 74,0.35);
+            background: #10110f; border: 1px solid rgba(213, 253, 81,0.35);
             border-radius: 10px; padding: 10px 14px;
-            box-shadow: 0 0 16px rgba(217, 173, 74,0.15);
+            box-shadow: 0 0 16px rgba(213, 253, 81,0.15);
             text-decoration: none; color: inherit;
             font-size: 13px; line-height: 1.4;
           }
-          .icon { color: #d9ad4a; flex-shrink: 0; }
+          .icon { color: #d5fd51; flex-shrink: 0; }
           .check { color: #22c55e; flex-shrink: 0; }
           .label { font-size: 10px; color: #706d66; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-          .asset { font-size: 14px; font-weight: 700; color: #f3efe6; }
+          .asset { font-size: 14px; font-weight: 700; color: #f7f9f7; }
           .meta { display: flex; gap: 10px; margin-top: 2px; }
           .chip {
             font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px;
-            background: rgba(217, 173, 74,0.12); color: #f1cb73;
+            background: rgba(213, 253, 81,0.12); color: #e5feaa;
           }
           .chip.green { background: rgba(34,197,94,0.1); color: #22c55e; }
           .divider { width: 1px; background: rgba(255,255,255,0.07); align-self: stretch; }
@@ -69,7 +69,7 @@ export function BadgeEmbed() {
             <div className="tvl-label">TVL Locked</div>
             <div className="tvl-value">{lock.tvl}</div>
             <div className="brand">
-              <Shield size={8} style={{ color: '#d9ad4a' }} />
+              <Shield size={8} style={{ color: '#d5fd51' }} />
               genesispad.app
             </div>
           </div>

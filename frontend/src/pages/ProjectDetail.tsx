@@ -92,7 +92,7 @@ export function ProjectDetail() {
         <Shield size={40} style={{ marginBottom: 16, opacity: 0.25 }} />
         <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>No locks found</div>
         <div style={{ fontSize: 13, marginBottom: 24 }}>No lock on Genesis Locker is associated with this address.</div>
-        <button onClick={() => navigate('/projects')} style={{ padding: '8px 20px', borderRadius: 8, background: 'rgba(217, 173, 74,0.15)', border: '1px solid rgba(217, 173, 74,0.3)', color: 'var(--accent)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+        <button onClick={() => navigate('/projects')} style={{ padding: '8px 20px', borderRadius: 8, background: 'rgba(213, 253, 81,0.15)', border: '1px solid rgba(213, 253, 81,0.3)', color: 'var(--accent)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
           ← Back to Projects
         </button>
       </div>
@@ -129,7 +129,7 @@ export function ProjectDetail() {
           <img src={metadata.banner} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
         </div>
       ) : (
-        <div style={{ height: 120, borderRadius: 12, marginBottom: 20, background: 'linear-gradient(135deg, #10110f 0%, #242018 55%, #10110f 100%)', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ height: 120, borderRadius: 12, marginBottom: 20, background: 'linear-gradient(135deg, #10110f 0%, #141a10 55%, #10110f 100%)', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, opacity: 0.06, backgroundImage: 'repeating-linear-gradient(45deg, var(--accent) 0, var(--accent) 1px, transparent 0, transparent 50%)', backgroundSize: '14px 14px' }} />
         </div>
       )}
@@ -140,7 +140,7 @@ export function ProjectDetail() {
         style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', marginBottom: 14, display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}
       >
         {/* Logo */}
-        <div style={{ width: 72, height: 72, borderRadius: '50%', flexShrink: 0, border: '3px solid rgba(217, 173, 74,0.3)', background: '#242018', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: '#f1cb73', overflow: 'hidden' }}>
+        <div style={{ width: 72, height: 72, borderRadius: '50%', flexShrink: 0, border: '3px solid rgba(213, 253, 81,0.3)', background: '#141a10', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: '#e5feaa', overflow: 'hidden' }}>
           {metadata?.logo ? <img src={metadata.logo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : symbol.slice(0, 2)}
         </div>
 
@@ -364,7 +364,7 @@ export function ProjectDetail() {
           )}
 
           {locks.length > 0 && !locks[0].token && locks[0].assetType === 'token' && (
-            <div style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 12, padding: '14px 16px', display: 'flex', gap: 10 }}>
+            <div style={{ background: 'rgba(225,183,92,0.07)', border: '1px solid rgba(225,183,92,0.2)', borderRadius: 12, padding: '14px 16px', display: 'flex', gap: 10 }}>
               <AlertTriangle size={16} color="var(--warning)" style={{ flexShrink: 0, marginTop: 1 }} />
               <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
                 Token metadata for this asset hasn't been indexed yet. Always verify the contract independently before trusting locked amounts.

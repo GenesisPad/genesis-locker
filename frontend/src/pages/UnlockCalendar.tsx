@@ -113,8 +113,8 @@ export function UnlockCalendar() {
           {(['all', ...CHAIN_CONFIGS.map(c => c.id)] as const).map(c => (
             <button key={c} onClick={() => setChain(c)} style={{
               fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
-              border: `1px solid ${chain === c ? 'rgba(217, 173, 74,0.5)' : 'var(--border)'}`,
-              background: chain === c ? 'rgba(217, 173, 74,0.12)' : 'transparent',
+              border: `1px solid ${chain === c ? 'rgba(213, 253, 81,0.5)' : 'var(--border)'}`,
+              background: chain === c ? 'rgba(213, 253, 81,0.12)' : 'transparent',
               color: chain === c ? 'var(--accent)' : 'var(--dim)',
             }}>{c === 'all' ? 'All Chains' : getChainById(c)?.name ?? c}</button>
           ))}
@@ -127,8 +127,8 @@ export function UnlockCalendar() {
           {(['all', 'LP', 'Token'] as const).map(t => (
             <button key={t} onClick={() => setType(t)} style={{
               fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
-              border: `1px solid ${type === t ? 'rgba(103, 199, 144,0.5)' : 'var(--border)'}`,
-              background: type === t ? 'rgba(103, 199, 144,0.12)' : 'transparent',
+              border: `1px solid ${type === t ? 'rgba(55, 213, 159,0.5)' : 'var(--border)'}`,
+              background: type === t ? 'rgba(55, 213, 159,0.12)' : 'transparent',
               color: type === t ? 'var(--accent-alt)' : 'var(--dim)',
             }}>{t === 'all' ? 'All Types' : t}</button>
           ))}
@@ -209,13 +209,13 @@ function ListView({ grouped, navigate }: { grouped: Map<string, CalendarUnlock[]
                   key={`${u.chainId}-${u.lockId}`}
                   className="chart-card"
                   style={{ padding: '12px 14px', cursor: 'pointer' }}
-                  whileHover={{ y: -1, borderColor: 'rgba(217, 173, 74,0.3)' }}
+                  whileHover={{ y: -1, borderColor: 'rgba(213, 253, 81,0.3)' }}
                   onClick={() => navigate(`/lock/${u.chainId}/${u.lockId}`)}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-                      background: 'rgba(217, 173, 74,0.1)', display: 'flex', alignItems: 'center',
+                      background: 'rgba(213, 253, 81,0.1)', display: 'flex', alignItems: 'center',
                       justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)',
                     }}>
                       {u.symbol.slice(0, 4)}
@@ -225,11 +225,11 @@ function ListView({ grouped, navigate }: { grouped: Map<string, CalendarUnlock[]
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{
                           fontSize: 9.5, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
-                          background: `${getChainById(u.chainId)?.dotColor ?? '#a9a49a'}18`, color: getChainById(u.chainId)?.dotColor ?? '#a9a49a',
+                          background: `${getChainById(u.chainId)?.dotColor ?? '#8c918b'}18`, color: getChainById(u.chainId)?.dotColor ?? '#8c918b',
                         }}>{getChainById(u.chainId)?.name ?? `Chain ${u.chainId}`}</span>
                         <span style={{
                           fontSize: 9.5, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
-                          background: u.type === 'LP' ? 'rgba(103, 199, 144,0.1)' : 'rgba(241, 203, 115,0.1)',
+                          background: u.type === 'LP' ? 'rgba(55, 213, 159,0.1)' : 'rgba(229, 254, 170,0.1)',
                           color: u.type === 'LP' ? 'var(--accent-alt)' : 'var(--accent-2)',
                         }}>{u.type}</span>
                       </div>
@@ -319,8 +319,8 @@ function CalendarView({ filtered, navigate }: { filtered: CalendarUnlock[]; navi
                 return (
                   <div key={day} style={{
                     minHeight: 44, borderRadius: 5, padding: '4px 5px',
-                    background: hasEvent ? 'rgba(217, 173, 74,0.08)' : 'rgba(255,255,255,0.015)',
-                    border: `1px solid ${hasEvent ? 'rgba(217, 173, 74,0.25)' : 'var(--border-2)'}`,
+                    background: hasEvent ? 'rgba(213, 253, 81,0.08)' : 'rgba(255,255,255,0.015)',
+                    border: `1px solid ${hasEvent ? 'rgba(213, 253, 81,0.25)' : 'var(--border-2)'}`,
                     cursor: hasEvent ? 'pointer' : 'default',
                     position: 'relative',
                   }}
@@ -332,7 +332,7 @@ function CalendarView({ filtered, navigate }: { filtered: CalendarUnlock[]; navi
                         {events.slice(0, 2).map(u => (
                           <div key={`${u.chainId}-${u.lockId}`} style={{
                             fontSize: 8.5, fontWeight: 600, color: 'var(--text)',
-                            background: `${getChainById(u.chainId)?.dotColor ?? '#a9a49a'}22`, borderRadius: 2, padding: '1px 3px', marginBottom: 1,
+                            background: `${getChainById(u.chainId)?.dotColor ?? '#8c918b'}22`, borderRadius: 2, padding: '1px 3px', marginBottom: 1,
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                           }}>{u.symbol}</div>
                         ))}

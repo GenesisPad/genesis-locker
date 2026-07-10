@@ -60,7 +60,7 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     id: 4663,
     name: 'Robinhood Chain',
     symbol: 'ETH',
-    dotColor: '#d9ad4a',
+    dotColor: '#d5fd51',
     feeLabel: '0.01 ETH',
     geckoTerminalId: null,
     explorerUrl: 'https://robinhoodchain.blockscout.com',

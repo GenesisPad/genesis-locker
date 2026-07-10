@@ -413,12 +413,12 @@ export function CreateLock() {
                       display: 'flex', alignItems: 'center', gap: 7,
                       padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: chain.id === c.id ? 600 : 400,
                       border: `1px solid ${chain.id === c.id ? 'var(--accent)' : 'var(--border)'}`,
-                      background: chain.id === c.id ? 'rgba(217, 173, 74,0.12)' : 'transparent',
+                      background: chain.id === c.id ? 'rgba(213, 253, 81,0.12)' : 'transparent',
                       color: chain.id === c.id ? 'var(--accent)' : 'var(--muted)',
                       cursor: 'pointer', transition: 'all 150ms',
                     }}
                   >
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dotColor ?? '#a9a49a', flexShrink: 0 }} />
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dotColor ?? '#8c918b', flexShrink: 0 }} />
                     {c.name}
                     {chain.id === c.id && <span style={{ fontSize: 10, opacity: 0.7 }}>· {c.feeLabel}</span>}
                   </button>
@@ -484,16 +484,16 @@ export function CreateLock() {
                 >
                   <div style={{
                     marginTop: 14,
-                    border: '1px solid rgba(217, 173, 74,0.35)',
+                    border: '1px solid rgba(213, 253, 81,0.35)',
                     borderRadius: 10,
-                    background: 'rgba(217, 173, 74,0.05)',
+                    background: 'rgba(213, 253, 81,0.05)',
                     padding: 14,
                   }}>
                     {detected.token && (
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                         <div
                           className="asset-avatar"
-                          style={{ width: 40, height: 40, background: '#242018', color: '#f1cb73', fontSize: 14, fontWeight: 700, flexShrink: 0 }}
+                          style={{ width: 40, height: 40, background: '#141a10', color: '#e5feaa', fontSize: 14, fontWeight: 700, flexShrink: 0 }}
                         >
                           {detected.token.symbol.slice(0, 2)}
                         </div>
@@ -509,7 +509,7 @@ export function CreateLock() {
                         </div>
                         <div style={{
                           fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
-                          background: 'rgba(217, 173, 74,0.12)', color: 'var(--accent)', flexShrink: 0,
+                          background: 'rgba(213, 253, 81,0.12)', color: 'var(--accent)', flexShrink: 0,
                         }}>
                           TOKEN
                         </div>
@@ -521,7 +521,7 @@ export function CreateLock() {
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                           <div
                             className="asset-avatar"
-                            style={{ width: 40, height: 40, background: '#242018', color: '#f1cb73', fontSize: 12, fontWeight: 700, flexShrink: 0 }}
+                            style={{ width: 40, height: 40, background: '#141a10', color: '#e5feaa', fontSize: 12, fontWeight: 700, flexShrink: 0 }}
                           >
                             {detected.pair.token0.symbol.slice(0, 1)}{detected.pair.token1.symbol.slice(0, 1)}
                           </div>
@@ -539,7 +539,7 @@ export function CreateLock() {
                           </div>
                           <div style={{
                             fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
-                            background: 'rgba(217, 173, 74,0.12)', color: 'var(--accent)', flexShrink: 0,
+                            background: 'rgba(213, 253, 81,0.12)', color: 'var(--accent)', flexShrink: 0,
                           }}>
                             LP PAIR
                           </div>
@@ -642,8 +642,8 @@ export function CreateLock() {
                       onClick={() => setAmount(tokenBalance.formatted)}
                       style={{
                         position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                        background: 'rgba(217, 173, 74,0.15)', color: 'var(--accent)',
-                        border: '1px solid rgba(217, 173, 74,0.35)', borderRadius: 5,
+                        background: 'rgba(213, 253, 81,0.15)', color: 'var(--accent)',
+                        border: '1px solid rgba(213, 253, 81,0.35)', borderRadius: 5,
                         padding: '3px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                         letterSpacing: '0.04em',
                       }}
@@ -774,7 +774,7 @@ export function CreateLock() {
                         {logoUpload === 'done' && social.logo ? (
                           <div style={{ position: 'relative' }}>
                             <div
-                              style={{ width: 88, height: 88, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(217, 173, 74,0.4)', cursor: 'pointer' }}
+                              style={{ width: 88, height: 88, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(213, 253, 81,0.4)', cursor: 'pointer' }}
                               onClick={() => logoInputRef.current?.click()}
                               title="Click to replace"
                             >
@@ -826,7 +826,7 @@ export function CreateLock() {
                         {bannerUpload === 'done' && social.banner ? (
                           <div style={{ position: 'relative' }}>
                             <div
-                              style={{ height: 88, borderRadius: 8, overflow: 'hidden', border: '2px solid rgba(217, 173, 74,0.4)', cursor: 'pointer' }}
+                              style={{ height: 88, borderRadius: 8, overflow: 'hidden', border: '2px solid rgba(213, 253, 81,0.4)', cursor: 'pointer' }}
                               onClick={() => bannerInputRef.current?.click()}
                               title="Click to replace"
                             >
@@ -968,8 +968,8 @@ export function CreateLock() {
                       <img src={social.logo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="logo" onError={e => { e.currentTarget.style.display = 'none' }} />
                     </div>
                   ) : (
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#242018', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#f1cb73' }}>{(detected?.token?.symbol || detected?.pair?.token0.symbol || '?').slice(0, 2)}</span>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#141a10', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#e5feaa' }}>{(detected?.token?.symbol || detected?.pair?.token0.symbol || '?').slice(0, 2)}</span>
                     </div>
                   )}
                   <div>

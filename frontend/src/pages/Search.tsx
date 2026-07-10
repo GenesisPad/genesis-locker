@@ -102,7 +102,7 @@ export function SearchPage() {
             >
               <div className="result-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div className="asset-avatar" style={{ background: '#242018', color: '#f1cb73', width: 36, height: 36, borderRadius: 10 }}>
+                  <div className="asset-avatar" style={{ background: '#141a10', color: '#e5feaa', width: 36, height: 36, borderRadius: 10 }}>
                     {resultTitle(result).slice(0, 2)}
                   </div>
                   <div>

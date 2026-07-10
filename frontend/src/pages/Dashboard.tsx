@@ -68,7 +68,7 @@ export function Dashboard() {
               {logo ? (
                 <img src={logo} alt="" className="asset-avatar" style={{ objectFit: 'cover' }} />
               ) : (
-                <div className="asset-avatar" style={{ background: lock.assetType === 'lp' ? '#001840' : '#242018', color: lock.assetType === 'lp' ? '#8fd6ac' : '#f1cb73' }}>
+                <div className="asset-avatar" style={{ background: lock.assetType === 'lp' ? '#001840' : '#141a10', color: lock.assetType === 'lp' ? '#8fd6ac' : '#e5feaa' }}>
                   {(lock.token?.symbol || lock.assetAddress).slice(0, 2)}
                 </div>
               )}

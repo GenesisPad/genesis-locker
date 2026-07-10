@@ -66,13 +66,13 @@ function LockSVG() {
     <svg viewBox="0 0 120 148" width="136" height="168" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="shackle-g" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#f1cb73" />
-          <stop offset="100%" stopColor="#d9ad4a" />
+          <stop offset="0%" stopColor="#e5feaa" />
+          <stop offset="100%" stopColor="#d5fd51" />
         </linearGradient>
         <linearGradient id="body-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#2a2410" />
-          <stop offset="60%" stopColor="#3d3319" />
-          <stop offset="100%" stopColor="#211c0c" />
+          <stop offset="0%" stopColor="#202a10" />
+          <stop offset="60%" stopColor="#303d19" />
+          <stop offset="100%" stopColor="#19210c" />
         </linearGradient>
         <linearGradient id="shine-g" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="rgba(255,255,255,0.09)" />
@@ -101,7 +101,7 @@ function LockSVG() {
       {/* Keyhole slot */}
       <rect x="56.5" y="108" width="7" height="17" rx="3.5" fill="rgba(0,0,0,0.45)" />
       {/* Body border glow */}
-      <rect x="10" y="67" width="100" height="72" rx="12" fill="none" stroke="rgba(217, 173, 74,0.3)" strokeWidth="1" />
+      <rect x="10" y="67" width="100" height="72" rx="12" fill="none" stroke="rgba(213, 253, 81,0.3)" strokeWidth="1" />
     </svg>
   )
 }
@@ -142,7 +142,7 @@ function BaseIcon() {
 function RobinhoodIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M16 3C9 8 6 12 6 17.5C6 21 8.2 23 11 23C13.2 23 15 21.4 15 19C15 16.6 13.2 15.5 11.5 15.5C13 12.5 15 9.5 16 8C17 9.5 19 12.5 20.5 15.5C18.8 15.5 17 16.6 17 19C17 21.4 18.8 23 21 23C23.8 23 26 21 26 17.5C26 12 23 8 16 3Z" fill="#d9ad4a" />
+      <path d="M16 3C9 8 6 12 6 17.5C6 21 8.2 23 11 23C13.2 23 15 21.4 15 19C15 16.6 13.2 15.5 11.5 15.5C13 12.5 15 9.5 16 8C17 9.5 19 12.5 20.5 15.5C18.8 15.5 17 16.6 17 19C17 21.4 18.8 23 21 23C23.8 23 26 21 26 17.5C26 12 23 8 16 3Z" fill="#d5fd51" />
     </svg>
   )
 }
@@ -387,7 +387,7 @@ export function Home() {
                     <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)}>
                       <td>
                         <div className="asset-cell">
-                          <AssetAvatar lock={lock} className="asset-avatar" style={{ background: '#242018', color: '#f1cb73' }} />
+                          <AssetAvatar lock={lock} className="asset-avatar" style={{ background: '#141a10', color: '#e5feaa' }} />
                           <div>
                             <div className="asset-name">{assetLabel(lock)}</div>
                             <div className="asset-dex">{chainName}</div>
@@ -452,7 +452,7 @@ export function Home() {
           )}
           {highestValueLocks.map(lock => (
             <div className="trending-item" key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)} style={{ cursor: 'pointer' }}>
-              <AssetAvatar lock={lock} className="t-avatar" style={{ background: '#242018', color: '#f1cb73' }} />
+              <AssetAvatar lock={lock} className="t-avatar" style={{ background: '#141a10', color: '#e5feaa' }} />
               <div className="t-info">
                 <div className="t-name">{assetLabel(lock)}</div>
                 <div className="t-dex">{getChainById(lock.chainId)?.name ?? `Chain ${lock.chainId}`}</div>
@@ -485,7 +485,7 @@ export function Home() {
           </div>
           <button
             onClick={() => navigate('/calendar')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', background: 'rgba(217, 173, 74,0.08)', border: '1px solid rgba(217, 173, 74,0.25)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', background: 'rgba(213, 253, 81,0.08)', border: '1px solid rgba(213, 253, 81,0.25)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}
           >
             View Calendar <ChevronRight size={13} />
           </button>
@@ -507,7 +507,7 @@ export function Home() {
               >
                 <AssetAvatar
                   lock={lock}
-                  style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(217, 173, 74,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}
+                  style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(213, 253, 81,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{assetLabel(lock)}</div>
@@ -518,7 +518,7 @@ export function Home() {
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{lock.tvlUsd ? formatUsd(lock.tvlUsd) : '—'}</div>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: days <= 7 ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)', color: days <= 7 ? 'var(--danger)' : 'var(--warning)', border: `1px solid ${days <= 7 ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)'}` }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: days <= 7 ? 'rgba(239,68,68,0.1)' : 'rgba(225,183,92,0.1)', color: days <= 7 ? 'var(--danger)' : 'var(--warning)', border: `1px solid ${days <= 7 ? 'rgba(239,68,68,0.25)' : 'rgba(225,183,92,0.25)'}` }}>
                     {days}d
                   </span>
                 </div>
