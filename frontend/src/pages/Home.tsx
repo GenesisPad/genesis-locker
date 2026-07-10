@@ -141,9 +141,13 @@ function BaseIcon() {
 
 function RobinhoodIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M16 3C9 8 6 12 6 17.5C6 21 8.2 23 11 23C13.2 23 15 21.4 15 19C15 16.6 13.2 15.5 11.5 15.5C13 12.5 15 9.5 16 8C17 9.5 19 12.5 20.5 15.5C18.8 15.5 17 16.6 17 19C17 21.4 18.8 23 21 23C23.8 23 26 21 26 17.5C26 12 23 8 16 3Z" fill="#d5fd51" />
-    </svg>
+    <img
+      src="/chain-robinhood.png"
+      alt="Robinhood Chain"
+      width={20}
+      height={20}
+      style={{ borderRadius: 5, objectFit: 'cover' }}
+    />
   )
 }
 
