@@ -3,23 +3,27 @@ import * as fs from "fs";
 import * as path from "path";
 
 /**
- * Deploys GenesisV3PositionLocker + GenesisLockerRegistry. Testnet/local only - refuses to
- * run against any network whose name doesn't explicitly opt in, per Requirement 3's
- * "Do not deploy to production mainnet" restriction. Wires the two contracts together and
- * writes a JSON manifest that contracts/script/deployDirectV3Stack.js reads to configure
- * GenesisProtocolConfig with the locker's address (cross-repo deployment coordination -
- * see docs/DEPLOYMENT.md).
+ * Deploys GenesisV3PositionLocker + GenesisLockerRegistry. Mainnet requires an explicit
+ * confirmation env var so the production path is deliberate. Wires the two contracts together
+ * and writes a JSON manifest that contracts/script/deployDirectV3Stack.js reads to configure
+ * GenesisProtocolConfig with the locker's address (cross-repo deployment coordination - see
+ * docs/DEPLOYMENT.md).
  */
-const ALLOWED_NETWORKS = ["hardhat", "localhost", "robinhoodTestnet"];
+const ALLOWED_NETWORKS = ["hardhat", "localhost", "robinhoodTestnet", "robinhood"];
+const MAINNET_CONFIRMATION = "DEPLOY_GENESISPAD_V3_TO_ROBINHOOD_MAINNET";
 
 async function main() {
   if (!ALLOWED_NETWORKS.includes(network.name)) {
     throw new Error(
-      `Refusing to deploy GenesisV3PositionLocker to network "${network.name}" - only ${ALLOWED_NETWORKS.join(", ")} are permitted this milestone (no mainnet deploys, per Requirement 3's explicit restriction).`,
+      `Refusing to deploy GenesisV3PositionLocker to network "${network.name}" - only ${ALLOWED_NETWORKS.join(", ")} are permitted.`,
     );
+  }
+  if (network.name === "robinhood" && process.env.MAINNET_DEPLOY_CONFIRMATION !== MAINNET_CONFIRMATION) {
+    throw new Error(`Set MAINNET_DEPLOY_CONFIRMATION=${MAINNET_CONFIRMATION} to deploy to Robinhood mainnet.`);
   }
 
   const [deployer] = await ethers.getSigners();
+  const finalOwner = process.env.OWNER_ADDRESS || process.env.FINAL_OWNER || deployer.address;
   const feeDistributionRegistry = process.env.FEE_DISTRIBUTION_REGISTRY_ADDRESS;
   if (!feeDistributionRegistry) {
     throw new Error("FEE_DISTRIBUTION_REGISTRY_ADDRESS is required so the locker can resolve the active fee distributor.");
@@ -55,6 +59,10 @@ async function main() {
     genesisV3PositionLocker: lockerAddress,
     genesisFeeDistributionRegistry: feeDistributionRegistry,
     genesisLockerRegistry: lockerRegistryAddress,
+    finalOwner,
+    ownershipTransferred: false,
+    ownershipTransferNote:
+      "Locker and locker registry ownership remain with deployer until contracts/script/deployDirectV3Stack.js wires the launch factory and transfers ownership.",
     deployedAt: new Date().toISOString(),
   };
   const outDir = path.join(__dirname, "..", "deployments", network.name);
