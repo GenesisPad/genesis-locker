@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAccount } from 'wagmi'
 import { Lock, Infinity, ChevronRight, CheckCircle, Plus } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { ApiLock, api, formatAmount, formatDate, formatUsd } from '../lib/api'
+import { ApiLock, api, formatAmount, formatDate, formatUsd, proofPath } from '../lib/api'
 import { CHAIN_CONFIGS } from '../lib/chains'
 import { parseMetadataURI } from '../lib/metadata'
 
@@ -64,7 +64,7 @@ export function Dashboard() {
           {locks.map(lock => {
             const logo = parseMetadataURI(lock.metadataURI)?.logo
             return (
-            <div className="dash-lock-row" key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)} style={{ cursor: 'pointer' }}>
+            <div className="dash-lock-row" key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(proofPath(lock))} style={{ cursor: 'pointer' }}>
               {logo ? (
                 <img src={logo} alt="" className="asset-avatar" style={{ objectFit: 'cover' }} />
               ) : (

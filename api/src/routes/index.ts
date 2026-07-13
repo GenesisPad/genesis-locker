@@ -32,6 +32,14 @@ router.get("/locks/:chainId/:lockId", async (req, res) => {
   res.json(status);
 });
 
+router.get("/locks/:chainId/:contractAddress/:lockId", async (req, res) => {
+  const chainId = chainParam.parse(req.params.chainId);
+  const contractAddress = addressParam.parse(req.params.contractAddress);
+  const lockId = BigInt(req.params.lockId);
+  const status = await getAssetStatus(chainId, undefined, lockId, contractAddress);
+  res.json(status);
+});
+
 router.get("/locks", async (req, res) => {
   res.json(await listLocks(Number(req.query.limit || 50)));
 });

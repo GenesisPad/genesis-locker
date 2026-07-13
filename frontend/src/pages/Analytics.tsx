@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell,
 } from 'recharts'
 import { Clock, ChevronRight, Layers, Coins, Lock, Infinity, Users, TrendingUp } from 'lucide-react'
-import { ApiLock, api, formatUsd, GlobalStats } from '../lib/api'
+import { ApiLock, api, formatUsd, GlobalStats, proofPath } from '../lib/api'
 import { getChainById } from '../lib/chains'
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
@@ -57,7 +57,7 @@ function durationBucket(lock: ApiLock): typeof DURATION_BUCKETS[number] {
 type AssetRow = {
   assetAddress: string
   chainId: number
-  assetType: 'lp' | 'token'
+  assetType: 'lp' | 'token' | 'v3_position'
   symbol: string
   tvlUsd: number
   lockCount: number
@@ -366,7 +366,7 @@ export function Analytics() {
             {upcomingUnlocks.map(lock => {
               const days = daysUntil(lock.unlockDate)!
               return (
-                <div key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)} style={{
+                <div key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(proofPath(lock))} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '8px 10px', borderRadius: 6, cursor: 'pointer',
                   background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)',

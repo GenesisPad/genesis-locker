@@ -36,7 +36,13 @@ export type ApiLock = {
   chainId: number
   contractAddress: string
   assetAddress: string
-  assetType: 'lp' | 'token'
+  assetType: 'lp' | 'token' | 'v3_position'
+  positionManager?: string | null
+  positionTokenId?: string | null
+  launchTokenAddress?: string | null
+  pairedAssetAddress?: string | null
+  poolAddress?: string | null
+  initialLiquidity?: string | null
   lockType: 'cliff' | 'vesting' | 'permanent'
   owner: string
   beneficiary: string
@@ -78,7 +84,7 @@ export type AssetStatus = {
   chainId: number
   chain: string | null
   assetAddress?: string
-  assetType: 'lp' | 'token' | null
+  assetType: 'lp' | 'token' | 'v3_position' | null
   isLocked: boolean
   hasPermanentLock: boolean
   totalLockedAmount: string
@@ -109,6 +115,7 @@ export type GlobalStats = {
   totalTvl: string
   totalLpTvl: string
   totalTokenTvl: string
+  totalV3PositionLocks?: number
   totalFeesCollected: string
   uniqueLockers: number
   byChain: Array<{ chainId: number; name: string; totalLocks: number; totalActiveLocks: number; totalPermanentLocks: number; totalTvl: string; totalFeesCollected: string }>
@@ -124,7 +131,9 @@ export const api = {
   chains: () => apiGet<ChainInfo[]>('/v1/chains'),
   stats: () => apiGet<GlobalStats>('/v1/stats'),
   locks: (limit = 50) => apiGet<{ locks: ApiLock[] }>(`/v1/locks?limit=${limit}`),
-  lock: (chainId: number, lockId: string) => apiGet<AssetStatus>(`/v1/locks/${chainId}/${lockId}`),
+  lock: (chainId: number, lockId: string, contractAddress?: string) => apiGet<AssetStatus>(
+    contractAddress ? `/v1/locks/${chainId}/${contractAddress}/${lockId}` : `/v1/locks/${chainId}/${lockId}`
+  ),
   search: (query: string) => apiGet<{ query: string; results: SearchResult[] }>(`/v1/search?q=${encodeURIComponent(query)}`),
   walletLocks: (chainId: number, address: string) => apiGet<{ chainId: number; walletAddress: string; locks: ApiLock[] }>(`/v1/wallets/${chainId}/${address}/locks`)
 }
@@ -157,4 +166,18 @@ export function formatAmount(value?: string | null, decimals = 18) {
   } catch {
     return value
   }
+}
+
+export function lockTypeLabel(lock: Pick<ApiLock, 'assetType'>) {
+  if (lock.assetType === 'v3_position') return 'V3 Position Lock'
+  return lock.assetType === 'lp' ? 'LP Lock' : 'Token Lock'
+}
+
+export function lockAssetLabel(lock: Pick<ApiLock, 'assetType' | 'token' | 'positionTokenId' | 'assetAddress' | 'lockId'>) {
+  if (lock.assetType === 'v3_position') return `V3 Position #${lock.positionTokenId || lock.lockId || '-'}`
+  return lock.token?.symbol || shortAddress(lock.assetAddress)
+}
+
+export function proofPath(lock: Pick<ApiLock, 'chainId' | 'contractAddress' | 'lockId'>) {
+  return `/lock/${lock.chainId}/${lock.contractAddress}/${lock.lockId}`
 }

@@ -6,7 +6,7 @@ import {
   Copy, Shield, Lock, Infinity, CheckCircle, BarChart2,
   AlertTriangle, Layers, XCircle,
 } from 'lucide-react'
-import { ApiLock, api, formatAmount, formatDate, formatUsd } from '../lib/api'
+import { ApiLock, api, formatAmount, formatDate, formatUsd, proofPath } from '../lib/api'
 import { getChainById } from '../lib/chains'
 import { parseMetadataURI } from '../lib/metadata'
 import { RiskScorecard, RiskCheck } from '../components/RiskScorecard'
@@ -262,7 +262,7 @@ export function ProjectDetail() {
                   {locks.map(lock => {
                     const pct = Number(lock.lockedPercentage || 0)
                     return (
-                      <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)} style={{ cursor: 'pointer' }}>
+                      <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(proofPath(lock))} style={{ cursor: 'pointer' }}>
                         <td>
                           <span className={`type-badge ${lock.assetType}`}>{lock.assetType === 'lp' ? 'LP Lock' : 'Token'}</span>
                         </td>

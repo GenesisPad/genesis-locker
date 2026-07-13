@@ -10,6 +10,7 @@ datasource db {
 enum AssetType {
   TOKEN
   LP
+  V3_POSITION
 }
 
 enum LockType {
@@ -102,6 +103,12 @@ model Lock {
   contractAddress   String
   assetAddress      String
   assetType         AssetType
+  positionManager   String?
+  positionTokenId   String?
+  launchTokenAddress String?
+  pairedAssetAddress String?
+  poolAddress       String?
+  initialLiquidity  String?
   lockType          LockType
   ownerAddress      String
   beneficiaryAddress String
@@ -124,9 +131,10 @@ model Lock {
   wallet            Wallet?   @relation(fields: [ownerAddress], references: [address])
   events            LockEvent[]
 
-  @@unique([chainId, lockId])
+  @@unique([chainId, contractAddress, lockId])
   @@index([chainId, assetAddress])
   @@index([chainId, ownerAddress])
+  @@index([chainId, positionManager, positionTokenId])
 }
 
 model LockEvent {

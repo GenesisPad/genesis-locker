@@ -37,3 +37,9 @@ export const pairAbi = [
 export const factoryAbi = [
   "function getPair(address tokenA, address tokenB) view returns (address pair)"
 ] as const;
+
+export const genesisV3PositionLockerAbi = [
+  "event PositionLockCreated(address indexed positionManager,uint256 indexed tokenId,address indexed launchToken,address pairedAsset,address pool,uint128 initialLiquidity)",
+  "event FeesCollected(address indexed positionManager,uint256 indexed tokenId,uint256 amount0,uint256 amount1,address recipient)",
+  "function getLock(address positionManager,uint256 tokenId) view returns (tuple(address positionManager,uint256 tokenId,address launchToken,address pairedAsset,address pool,address originalDepositor,address beneficiary,uint128 initialLiquidity,uint64 lockedAt,uint64 unlockTime,bool permanent,bool registeredGenesisLaunch,bool withdrawn))"
+] as const;

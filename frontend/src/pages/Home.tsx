@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { RiskBadge, RISK_BADGES } from '../components/RiskBadge'
 import { motion } from 'framer-motion'
-import { api, formatUsd, formatAmount, formatDate, type ApiLock, type GlobalStats } from '../lib/api'
+import { api, formatUsd, formatAmount, formatDate, proofPath, type ApiLock, type GlobalStats } from '../lib/api'
 import { getChainById } from '../lib/chains'
 import { parseMetadataURI } from '../lib/metadata'
 
@@ -388,7 +388,7 @@ export function Home() {
                   const status = lockStatus(lock)
                   const chainName = getChainById(lock.chainId)?.name ?? `Chain ${lock.chainId}`
                   return (
-                    <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)}>
+                    <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(proofPath(lock))}>
                       <td>
                         <div className="asset-cell">
                           <AssetAvatar lock={lock} className="asset-avatar" style={{ background: '#141a10', color: '#e5feaa' }} />
@@ -455,7 +455,7 @@ export function Home() {
             </div>
           )}
           {highestValueLocks.map(lock => (
-            <div className="trending-item" key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)} style={{ cursor: 'pointer' }}>
+            <div className="trending-item" key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(proofPath(lock))} style={{ cursor: 'pointer' }}>
               <AssetAvatar lock={lock} className="t-avatar" style={{ background: '#141a10', color: '#e5feaa' }} />
               <div className="t-info">
                 <div className="t-name">{assetLabel(lock)}</div>
@@ -506,7 +506,7 @@ export function Home() {
             return (
               <div
                 key={`${lock.chainId}-${lock.lockId}`}
-                onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)}
+                onClick={() => navigate(proofPath(lock))}
                 style={{ background: 'var(--card-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
               >
                 <AssetAvatar

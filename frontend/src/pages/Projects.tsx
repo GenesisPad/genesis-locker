@@ -5,13 +5,13 @@ import {
   Search, ChevronRight, TrendingUp, Lock,
   Layers, Infinity, CheckCircle, Coins,
 } from 'lucide-react'
-import { ApiLock, api, formatAmount, formatDate, formatUsd } from '../lib/api'
+import { ApiLock, api, formatAmount, formatDate, formatUsd, lockAssetLabel, lockTypeLabel, proofPath } from '../lib/api'
 import { getChainById } from '../lib/chains'
 
 // ─── shared helpers ────────────────────────────────────────────────────────
 
 type ChainF   = 'All' | number
-type LockFilter = 'all' | 'lp' | 'token' | 'cliff' | 'vesting' | 'permanent'
+type LockFilter = 'all' | 'lp' | 'token' | 'v3_position' | 'cliff' | 'vesting' | 'permanent'
 
 function formatTvl(n: number) {
   if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
@@ -20,6 +20,7 @@ function formatTvl(n: number) {
 }
 function pctClass(p: number) { return p >= 75 ? 'high' : p >= 50 ? 'medium' : 'low' }
 function lockName(lock: ApiLock) {
+  if (lock.assetType === 'v3_position') return lockAssetLabel(lock)
   return lock.token?.symbol || `${lock.assetAddress.slice(0, 6)}…${lock.assetAddress.slice(-4)}`
 }
 
@@ -28,7 +29,7 @@ function lockName(lock: ApiLock) {
 type AssetGroup = {
   assetAddress: string
   chainId: number
-  assetType: 'lp' | 'token'
+  assetType: 'lp' | 'token' | 'v3_position'
   name: string
   symbol: string
   totalTvlUsd: number
@@ -159,6 +160,7 @@ export function Projects() {
     { key: 'all',       label: 'All Locks' },
     { key: 'lp',        label: 'LP Locks' },
     { key: 'token',     label: 'Token Locks' },
+    { key: 'v3_position', label: 'V3 Positions' },
     { key: 'cliff',     label: 'Cliff' },
     { key: 'vesting',   label: 'Vesting' },
     { key: 'permanent', label: 'Permanent' },
@@ -167,6 +169,7 @@ export function Projects() {
   const visibleLocks = useMemo(() => locks.filter(lock => {
     if (lockFilter === 'lp')        return lock.assetType === 'lp'
     if (lockFilter === 'token')     return lock.assetType === 'token'
+    if (lockFilter === 'v3_position') return lock.assetType === 'v3_position'
     if (lockFilter === 'cliff')     return lock.lockType  === 'cliff'
     if (lockFilter === 'vesting')   return lock.lockType  === 'vesting'
     if (lockFilter === 'permanent') return lock.isPermanent
@@ -394,10 +397,10 @@ export function Projects() {
                   {visibleLocks.map(lock => {
                     const pct = Number(lock.lockedPercentage || 0)
                     return (
-                      <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(`/lock/${lock.chainId}/${lock.lockId}`)} style={{ cursor: 'pointer' }}>
+                      <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(proofPath(lock))} style={{ cursor: 'pointer' }}>
                         <td>
                           <div className="asset-cell">
-                            <div className="asset-avatar" style={{ background: lock.assetType === 'lp' ? '#001840' : '#141a10', color: lock.assetType === 'lp' ? '#8fd6ac' : '#e5feaa' }}>
+                            <div className="asset-avatar" style={{ background: lock.assetType === 'lp' || lock.assetType === 'v3_position' ? '#001840' : '#141a10', color: lock.assetType === 'lp' || lock.assetType === 'v3_position' ? '#8fd6ac' : '#e5feaa' }}>
                               {lockName(lock).slice(0, 2)}
                             </div>
                             <div>
@@ -409,12 +412,12 @@ export function Projects() {
                           </div>
                         </td>
                         <td>
-                          <div className={`type-badge ${lock.assetType}`}>{lock.assetType === 'lp' ? 'LP Lock' : 'Token Lock'}</div>
+                          <div className={`type-badge ${lock.assetType}`}>{lockTypeLabel(lock)}</div>
                           <div className="mode-label">{lock.lockType}</div>
                         </td>
                         <td><span style={{ fontSize: 11, fontWeight: 700, padding: '3px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>{getChainById(lock.chainId)?.name || lock.chainId}</span></td>
                         <td>
-                          <div className="amt-main">{formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)}</div>
+                          <div className="amt-main">{lock.assetType === 'v3_position' ? (lock.initialLiquidity || lock.remainingLockedAmount) : formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)}</div>
                           <div className="amt-usd">{formatUsd(lock.tvlUsd)}</div>
                         </td>
                         <td>
@@ -424,7 +427,7 @@ export function Projects() {
                         <td>
                           <div className="pct-wrap">
                             <div className="pct-bar"><div className={`pct-fill ${pctClass(pct)}`} style={{ width: `${Math.min(pct, 100)}%` }} /></div>
-                            <span className="pct-val">{lock.lockedPercentage || '-'}%</span>
+                            <span className="pct-val">{lock.assetType === 'v3_position' ? 'NFT' : `${lock.lockedPercentage || '-'}%`}</span>
                           </div>
                         </td>
                         <td>

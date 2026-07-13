@@ -50,6 +50,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="search" element={<SearchPage />} />
               <Route path="create" element={<CreateLock />} />
               <Route path="locks" element={<LocksExplorer />} />
+              <Route path="lock/:chainId/:contractAddress/:id" element={<LockDetail />} />
               <Route path="lock/:chainId/:id" element={<LockDetail />} />
               <Route path="lock/:id" element={<LockDetail />} />
               <Route path="token/:address" element={<TokenDetail />} />

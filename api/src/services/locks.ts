@@ -55,6 +55,7 @@ function claimableAmount(lock: Pick<Lock, "amount" | "withdrawnAmount" | "isPerm
 // this particular lock's slice compares to the threshold on its own.
 function buildWarnings(lock: LockWithRelations, totalAssetLockedPercentage: number | undefined) {
   const warnings: string[] = [];
+  if (lock.assetType === AssetType.V3_POSITION) return warnings;
   if (lock.endTime && lock.createdAt) {
     const durationDays = (lock.endTime.getTime() - lock.startTime.getTime()) / (1000 * 60 * 60 * 24);
     if (durationDays < shortLockDays) warnings.push("Short Lock");
@@ -67,6 +68,9 @@ function buildWarnings(lock: LockWithRelations, totalAssetLockedPercentage: numb
 }
 
 function badgesFor(lock: LockWithRelations) {
+  if (lock.assetType === AssetType.V3_POSITION) {
+    return ["V3 Position Locked", "GenesisPad Launch", "Permanently Locked"];
+  }
   const badges = [lock.assetType === AssetType.LP ? "LP Locked" : "Token Locked"];
   badges.push(lock.lockType === LockType.VESTING ? "Vesting Lock" : "Cliff Lock");
   if (lock.isPermanent) badges.push("Permanently Locked");
@@ -81,6 +85,12 @@ function serializeLock(lock: LockWithRelations, explorerUrl?: string | null) {
     contractAddress: lock.contractAddress,
     assetAddress: lock.assetAddress,
     assetType: lock.assetType.toLowerCase(),
+    positionManager: lock.positionManager,
+    positionTokenId: lock.positionTokenId,
+    launchTokenAddress: lock.launchTokenAddress,
+    pairedAssetAddress: lock.pairedAssetAddress,
+    poolAddress: lock.poolAddress,
+    initialLiquidity: lock.initialLiquidity,
     lockType: lock.isPermanent ? "permanent" : lock.lockType.toLowerCase(),
     owner: lock.ownerAddress,
     beneficiary: lock.beneficiaryAddress,
@@ -168,16 +178,25 @@ export async function getGlobalStats() {
     totalTvl: locks.reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
     totalLpTvl: locks.filter((lock) => lock.assetType === AssetType.LP).reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
     totalTokenTvl: locks.filter((lock) => lock.assetType === AssetType.TOKEN).reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
+    totalV3PositionLocks: locks.filter((lock) => lock.assetType === AssetType.V3_POSITION).length,
     totalFeesCollected: feeStats.reduce((sum, fee) => sum + BigInt(fee.amount), 0n).toString(),
     uniqueLockers,
     byChain
   };
 }
 
-export async function getAssetStatus(chainId: number, assetAddress?: string, lockId?: bigint) {
+export async function getAssetStatus(chainId: number, assetAddress?: string, lockId?: bigint, contractAddress?: string) {
+  const lockWhere = lockId
+    ? {
+      chainId,
+      lockId,
+      ...(contractAddress ? { contractAddress: contractAddress.toLowerCase() } : {})
+    }
+    : { chainId, assetAddress: assetAddress?.toLowerCase() };
+
   const [locks, chain, contract] = await Promise.all([
     db.lock.findMany({
-    where: lockId ? { chainId, lockId } : { chainId, assetAddress: assetAddress?.toLowerCase() },
+      where: lockWhere,
       include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
       orderBy: [{ isPermanent: "desc" }, { endTime: "desc" }]
     }) as Promise<LockWithRelations[]>,
@@ -199,7 +218,7 @@ export async function getAssetStatus(chainId: number, assetAddress?: string, loc
     isLocked: locks.length > 0,
     hasPermanentLock: locks.some((lock) => lock.isPermanent),
     totalLockedAmount: locks.reduce((sum, lock) => sum + remainingAmount(lock), 0n).toString(),
-    lockedPercentage: totalLockedPercentage !== undefined ? totalLockedPercentage.toString() : null,
+    lockedPercentage: first?.assetType === AssetType.V3_POSITION ? null : totalLockedPercentage !== undefined ? totalLockedPercentage.toString() : null,
     longestUnlockDate: dateToIso(first?.endTime),
     warnings: [...new Set(locks.flatMap((lock) => buildWarnings(lock, totalLockedPercentage)))],
     badges: [...new Set(locks.flatMap((lock) => badgesFor(lock)))],

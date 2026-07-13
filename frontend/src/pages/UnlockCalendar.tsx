@@ -2,12 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Calendar, List, Clock, Filter } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { api, type ApiLock } from '../lib/api'
+import { api, proofPath, type ApiLock } from '../lib/api'
 import { CHAIN_CONFIGS, getChainById } from '../lib/chains'
 
 type CalendarUnlock = {
   chainId: number
   lockId: string
+  contractAddress: string
   asset: string
   symbol: string
   type: 'LP' | 'Token'
@@ -24,6 +25,7 @@ function toCalendarUnlock(lock: ApiLock): CalendarUnlock | null {
   return {
     chainId: lock.chainId,
     lockId: lock.lockId,
+    contractAddress: lock.contractAddress,
     asset: symbol,
     symbol,
     type: lock.assetType === 'lp' ? 'LP' : 'Token',
@@ -210,7 +212,7 @@ function ListView({ grouped, navigate }: { grouped: Map<string, CalendarUnlock[]
                   className="chart-card"
                   style={{ padding: '12px 14px', cursor: 'pointer' }}
                   whileHover={{ y: -1, borderColor: 'rgba(213, 253, 81,0.3)' }}
-                  onClick={() => navigate(`/lock/${u.chainId}/${u.lockId}`)}
+                  onClick={() => navigate(proofPath(u))}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <div style={{
@@ -324,7 +326,7 @@ function CalendarView({ filtered, navigate }: { filtered: CalendarUnlock[]; navi
                     cursor: hasEvent ? 'pointer' : 'default',
                     position: 'relative',
                   }}
-                    onClick={() => hasEvent && navigate(`/lock/${events[0].chainId}/${events[0].lockId}`)}
+                    onClick={() => hasEvent && navigate(proofPath(events[0]))}
                   >
                     <div style={{ fontSize: 10, fontWeight: hasEvent ? 700 : 400, color: hasEvent ? 'var(--accent)' : 'var(--dim)', lineHeight: 1 }}>{day}</div>
                     {hasEvent && (

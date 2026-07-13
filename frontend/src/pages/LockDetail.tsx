@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { CheckCircle2, CheckCircle, Shield, Copy, ExternalLink, Infinity, Clock, ChevronLeft, Globe, Twitter, MessageCircle, Hash } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { RiskBadge } from '../components/RiskBadge'
-import { ApiLock, api, formatAmount, formatDate, formatUsd, shortAddress } from '../lib/api'
+import { ApiLock, api, formatAmount, formatDate, formatUsd, lockAssetLabel, lockTypeLabel, proofPath, shortAddress } from '../lib/api'
 import { parseMetadataURI } from '../lib/metadata'
 import { manageLockTransaction } from '../lib/wallet'
 
@@ -34,8 +34,13 @@ function pctProgress(lock: ApiLock) {
   return Math.max(0, Math.min(100, Math.round(((Date.now() - start) / (end - start)) * 100)))
 }
 
+function displayAmount(lock: ApiLock) {
+  if (lock.assetType === 'v3_position') return lock.initialLiquidity || lock.amount
+  return formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)
+}
+
 export function LockDetail() {
-  const { chainId, id } = useParams()
+  const { chainId, contractAddress, id } = useParams()
   const navigate = useNavigate()
   const [lock, setLock] = useState<ApiLock | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
@@ -50,14 +55,14 @@ export function LockDetail() {
   useEffect(() => {
     const finalChainId = Number(chainId || 1)
     const finalLockId = id || '1'
-    api.lock(finalChainId, finalLockId)
+    api.lock(finalChainId, finalLockId, contractAddress)
       .then(response => {
         setLock(response.locks[0] || null)
         setWarnings(response.warnings)
       })
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load lock'))
       .finally(() => setLoading(false))
-  }, [chainId, id])
+  }, [chainId, contractAddress, id])
 
   const progress = useMemo(() => lock ? pctProgress(lock) : 0, [lock])
   const metadata = useMemo(() => lock ? parseMetadataURI(lock.metadataURI) : null, [lock])
@@ -105,18 +110,20 @@ export function LockDetail() {
   if (loading) return <div className="lock-detail-page"><div className="form-alert">Loading lock proof...</div></div>
   if (!lock) return <div className="lock-detail-page"><div className="form-alert error">{error || 'Lock not found'}</div></div>
 
+  const sharePath = proofPath(lock)
+
   return (
     <div className="lock-detail-page">
       <button onClick={() => navigate(-1)} style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--muted)', fontSize: 12.5, marginBottom: 20, fontWeight: 500 }}>
         <ChevronLeft size={14} /> Back to Explorer
       </button>
 
-      <motion.div className={`verified-banner ${lock.assetType === 'lp' ? 'lp-verified' : 'token-verified'}`} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <motion.div className={`verified-banner ${lock.assetType === 'lp' || lock.assetType === 'v3_position' ? 'lp-verified' : 'token-verified'}`} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <CheckCircle2 size={22} />
         <div>
-          <div>{lock.assetType === 'lp' ? 'LP Lock Verified' : 'Token Lock Verified'}</div>
+          <div>{lockTypeLabel(lock)} Verified</div>
           <div style={{ fontSize: 12.5, fontWeight: 700, opacity: 0.85, marginTop: 2 }}>
-            {formatAmount(lock.amount, lock.token?.decimals ?? 18)} {lock.token?.symbol || shortAddress(lock.assetAddress)} · {lock.isPermanent ? 'Permanent' : `Unlocks ${formatDate(lock.unlockDate)}`}
+            {lock.assetType === 'v3_position' ? `Liquidity ${displayAmount(lock)}` : `${displayAmount(lock)} ${lock.token?.symbol || shortAddress(lock.assetAddress)}`} · {lock.isPermanent ? 'Permanent' : `Unlocks ${formatDate(lock.unlockDate)}`}
           </div>
         </div>
         <span style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 800, opacity: 0.95, flexShrink: 0 }}>Lock #{lock.lockId}</span>
@@ -170,8 +177,11 @@ export function LockDetail() {
         <div className="lock-detail-grid">
           <div className="detail-card">
             <div className="detail-card-label">Asset Information</div>
-            <div className="detail-field"><span className="detail-field-label">Asset</span><span className="detail-field-val">{lock.token?.symbol || shortAddress(lock.assetAddress)}</span></div>
-            <div className="detail-field"><span className="detail-field-label">Asset Address</span><span className="detail-field-val addr">{shortAddress(lock.assetAddress)} <CopyBtn value={lock.assetAddress} /></span></div>
+            <div className="detail-field"><span className="detail-field-label">Asset</span><span className="detail-field-val">{lockAssetLabel(lock)}</span></div>
+            <div className="detail-field"><span className="detail-field-label">{lock.assetType === 'v3_position' ? 'Launch Token' : 'Asset Address'}</span><span className="detail-field-val addr">{shortAddress(lock.assetAddress)} <CopyBtn value={lock.assetAddress} /></span></div>
+            {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">V3 Pool</span><span className="detail-field-val addr">{shortAddress(lock.poolAddress)} {lock.poolAddress && <CopyBtn value={lock.poolAddress} />}</span></div>}
+            {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">Position Manager</span><span className="detail-field-val addr">{shortAddress(lock.positionManager)} {lock.positionManager && <CopyBtn value={lock.positionManager} />}</span></div>}
+            {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">Position NFT ID</span><span className="detail-field-val">#{lock.positionTokenId}</span></div>}
             <div className="detail-field">
               <span className="detail-field-label">Asset Page</span>
               <span className="detail-field-val">
@@ -180,13 +190,13 @@ export function LockDetail() {
                   style={{ fontSize: 11.5, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
                 >
                   <ExternalLink size={11} />
-                  {lock.assetType === 'lp' ? 'View LP Detail' : 'View Token Detail'}
+                  {lock.assetType === 'v3_position' ? 'View Launch Token Detail' : lock.assetType === 'lp' ? 'View LP Detail' : 'View Token Detail'}
                 </button>
               </span>
             </div>
             <div className="detail-field"><span className="detail-field-label">Chain</span><span className="detail-field-val">{lock.chainId}</span></div>
             <div className="detail-field"><span className="detail-field-label">Lock Type</span><span className="detail-field-val">{lock.lockType}</span></div>
-            <div className="detail-field"><span className="detail-field-label">Amount Locked</span><span className="detail-field-val">{formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)}</span></div>
+            <div className="detail-field"><span className="detail-field-label">{lock.assetType === 'v3_position' ? 'Initial Liquidity' : 'Amount Locked'}</span><span className="detail-field-val">{displayAmount(lock)}</span></div>
             <div className="detail-field"><span className="detail-field-label">USD Value</span><span className="detail-field-val" style={{ color: 'var(--success)' }}>{formatUsd(lock.tvlUsd)}</span></div>
           </div>
 
@@ -214,7 +224,7 @@ export function LockDetail() {
           </div>
         </div>
 
-        <div className="detail-card" style={{ marginBottom: 16 }}>
+        {lock.assetType !== 'v3_position' ? <div className="detail-card" style={{ marginBottom: 16 }}>
           <div className="detail-card-label">Wallet Actions</div>
           <div style={{ fontSize: 11.5, color: 'var(--dim)', marginBottom: 14 }}>
             Only the lock owner ({shortAddress(lock.owner)}) can extend, add amount, permanently lock, or transfer. Only the beneficiary ({shortAddress(lock.beneficiary)}) can withdraw claimable tokens.
@@ -279,7 +289,14 @@ export function LockDetail() {
               </button>
             </div>
           </div>
-        </div>
+        </div> : (
+          <div className="detail-card" style={{ marginBottom: 16 }}>
+            <div className="detail-card-label">Position Controls</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+              This Uniswap V3 position NFT is permanently held by the Genesis V3 position locker. LP principal cannot be withdrawn, transferred, decreased, or migrated by the creator, protocol, or locker owner.
+            </div>
+          </div>
+        )}
 
         <div className="detail-card" style={{ marginBottom: 16 }}>
           <div className="detail-card-label">Risk Assessment</div>
@@ -303,9 +320,9 @@ export function LockDetail() {
           <Shield size={18} color="var(--accent)" />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Share this lock verification</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)' }}>locker.genesispad.app/lock/{lock.chainId}/{lock.lockId}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>locker.genesispad.app{sharePath}</div>
           </div>
-          <button className="btn-secondary" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => navigator.clipboard.writeText(`https://locker.genesispad.app/lock/${lock.chainId}/${lock.lockId}`).catch(() => {})}>
+          <button className="btn-secondary" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => navigator.clipboard.writeText(`https://locker.genesispad.app${sharePath}`).catch(() => {})}>
             <Copy size={12} /> Copy Link
           </button>
         </div>
