@@ -15,16 +15,19 @@
     "deploy:bsc": "hardhat run scripts/deploy.ts --network bsc",
     "deploy:local-fixture": "hardhat run scripts/deploy-local-fixture.ts --network localhost",
     "deploy:local-demo": "hardhat run scripts/deploy-local-demo.ts --network localhost",
-    "export:abi": "hardhat run scripts/export-abi.ts"
+    "export:abi": "hardhat run scripts/export-abi.ts",
+    "deploy:v3-locker-testnet": "hardhat run scripts/deploy-v3-locker.ts --network robinhoodTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@uniswap/v3-periphery": "1.4.4",
     "hardhat": "^2.22.18",
     "typescript": "^5.6.3",
     "ts-node": "^10.9.2"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.1.0",
+    "@uniswap/v3-core": "1.0.1",
     "dotenv": "^16.4.7"
   }
 }
