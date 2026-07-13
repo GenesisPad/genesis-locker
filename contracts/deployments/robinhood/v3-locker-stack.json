@@ -1,0 +1,21 @@
+{
+  "network": "robinhood",
+  "chainId": "4663",
+  "deployer": "0xcB67330a24624d5Add4ec95Da522e2adE58310eb",
+  "genesisV3PositionLocker": "0xbFA1Ec57AA74473EAbcD7858da405Eb5c9788E9f",
+  "genesisFeeDistributionRegistry": "0x2bE46bAe642E01EdDa802E9243020A98d4d12bda",
+  "genesisLockerRegistry": "0x770B79Ac54e894Da5C1F3168076235d6A187714F",
+  "finalOwner": "0x8CFa84924011b19765136Baea669AC81FE8bB561",
+  "ownershipTransferred": true,
+  "ownershipTransferNote": "Locker and locker registry ownership were transferred to finalOwner after contracts/script/deployDirectV3Stack.js wired the launch factory.",
+  "ownershipTransferTransactions": {
+    "genesisV3PositionLocker": "0x1d40b77b236bf23a4b6a603eb286427e5fbc8c921ead481b219135e6955e3d9b",
+    "genesisLockerRegistry": "0xcedd5d47dae95786a532eac5e531b43ab4f2ba75eedb34236593ea57181967b8"
+  },
+  "deployedAt": "2026-07-13T08:57:10.000Z",
+  "salvagedAfterGasRace": true,
+  "salvageTransactions": {
+    "setLockerRegistry": "0x5724a3e5a80a2fb3d4a480d359a4cb0c74466ec96fa6ce2fdddfe94c057bfa38",
+    "setAuthorizedLocker": "0x8ba7786709d9d0e8e3c73cc080232fd1416f6a02cb03b8906000dbd77d83c3f3"
+  }
+}

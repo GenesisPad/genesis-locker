@@ -5,6 +5,9 @@ import "@nomicfoundation/hardhat-toolbox";
 loadEnv();
 
 const accounts = process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [];
+const robinhoodGasPrice = process.env.ROBINHOOD_GAS_PRICE_WEI
+  ? Number(process.env.ROBINHOOD_GAS_PRICE_WEI)
+  : undefined;
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -18,7 +21,8 @@ const config: HardhatUserConfig = {
     robinhood: {
       url: process.env.ROBINHOOD_RPC_URL || "https://rpc.mainnet.chain.robinhood.com",
       chainId: 4663,
-      accounts
+      accounts,
+      gasPrice: robinhoodGasPrice
     },
     ethereum: {
       url: process.env.ETHEREUM_RPC_URL || "",
