@@ -65,12 +65,15 @@ export async function createLockTransaction(input: {
   vestingInterval?: number
   metadataURI: string
   permanent?: boolean
+  onApprovalConfirmed?: () => void
+  onLockSubmitted?: () => void
 }) {
   const { signer } = await connectWallet()
   const token = new Contract(input.tokenAddress, ERC20_ABI, signer)
   const decimals = Number(await token.decimals().catch(() => 18))
   const amount = parseUnits(input.amount, decimals)
   await (await token.approve(input.contractAddress, amount)).wait()
+  input.onApprovalConfirmed?.()
 
   const locker = new Contract(input.contractAddress, GENESIS_LOCKER_ABI, signer)
   const fee = await locker.creationFee()
@@ -83,6 +86,7 @@ export async function createLockTransaction(input: {
     if (!input.unlockTime) throw new Error('Missing unlock time')
     tx = await locker.createCliffLock(input.tokenAddress, input.beneficiary, amount, input.unlockTime, input.isLpToken, input.metadataURI, { value: fee })
   }
+  input.onLockSubmitted?.()
 
   if (!input.permanent) return tx
   const receipt = await tx.wait()

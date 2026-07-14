@@ -160,7 +160,7 @@ export function Projects() {
     { key: 'all',       label: 'All Locks' },
     { key: 'lp',        label: 'LP Locks' },
     { key: 'token',     label: 'Token Locks' },
-    { key: 'v3_position', label: 'V3 Positions' },
+    { key: 'v3_position', label: 'Locked Positions' },
     { key: 'cliff',     label: 'Cliff' },
     { key: 'vesting',   label: 'Vesting' },
     { key: 'permanent', label: 'Permanent' },
@@ -427,7 +427,7 @@ export function Projects() {
                         <td>
                           <div className="pct-wrap">
                             <div className="pct-bar"><div className={`pct-fill ${pctClass(pct)}`} style={{ width: `${Math.min(pct, 100)}%` }} /></div>
-                            <span className="pct-val">{lock.assetType === 'v3_position' ? 'NFT' : `${lock.lockedPercentage || '-'}%`}</span>
+                            <span className="pct-val">{lock.assetType === 'v3_position' ? 'Position' : `${lock.lockedPercentage || '-'}%`}</span>
                           </div>
                         </td>
                         <td>

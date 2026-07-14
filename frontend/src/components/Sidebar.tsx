@@ -2,7 +2,7 @@ import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home, Search, Lock, LayoutDashboard,
-  BarChart2, Link2, Code2, BookOpen,
+  BarChart2, Link2, Code2, BookOpen, Layers,
   Github, CalendarClock, Trophy, Vote,
 } from 'lucide-react'
 
@@ -33,9 +33,11 @@ const navSections = [
       { to: '/',          label: 'Home',            icon: Home,          exact: true },
       { to: '/search',    label: 'Search',           icon: Search },
       { to: '/create',    label: 'Create Lock',      icon: Lock,          badge: 'NEW' },
+      { to: '/locks',     label: 'Explore Locks',    icon: Trophy },
+      { to: '/positions', label: 'Locked Positions', icon: Layers },
+      { to: '/my-locks',  label: 'My Locks',         icon: LayoutDashboard },
       { to: '/calendar',  label: 'Unlock Calendar',  icon: CalendarClock },
-      { to: '/projects',  label: 'Projects & Locks', icon: Trophy },
-      { to: '/dashboard', label: 'My Locks',         icon: LayoutDashboard },
+      { to: '/projects',  label: 'Projects',         icon: Trophy },
       { to: '/analytics', label: 'TVL & Analytics',  icon: BarChart2 },
       { to: '/chains',    label: 'Chains',           icon: Link2 },
     ],

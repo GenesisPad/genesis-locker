@@ -1,7 +1,7 @@
 import { JsonRpcProvider } from "ethers";
 import { chains } from "../config.js";
 import { db } from "../db.js";
-import { syncAssetMetadata, refreshAssetCalculations } from "../services/metadata.js";
+import { syncAssetMetadata, refreshAssetCalculations, refreshV3PositionLockValue } from "../services/metadata.js";
 import { isRpcReachable } from "./rpc.js";
 
 /**
@@ -27,6 +27,15 @@ async function backfill() {
     await syncAssetMetadata(asset.chainId, asset.assetAddress, asset.assetType, provider);
     await refreshAssetCalculations(asset.chainId, asset.assetAddress);
     console.log(`Backfilled ${chain.name} ${asset.assetAddress}`);
+  }
+
+  const positionLocks = await db.lock.findMany({
+    where: { assetType: "V3_POSITION" },
+    select: { id: true }
+  });
+  for (const lock of positionLocks) {
+    await refreshV3PositionLockValue(lock.id);
+    console.log(`Refreshed locked position ${lock.id}`);
   }
 }
 

@@ -2757,6 +2757,267 @@ img, video, canvas, svg { max-width: 100%; }
   }
 }
 
+.create-stepper,
+.filter-row,
+.chain-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.create-stepper {
+  padding: 0 28px 18px;
+}
+
+.step-pill,
+.filter-chip,
+.chain-pill {
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--muted);
+  border-radius: var(--r-sm);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.step-pill.active,
+.step-pill.done,
+.filter-chip.active,
+.chain-pill.active {
+  border-color: rgba(217, 173, 74, 0.45);
+  color: var(--text);
+  background: rgba(217, 173, 74, 0.09);
+}
+
+.unified-create-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: 18px;
+  padding: 0 28px 28px;
+  align-items: start;
+}
+
+.asset-choice-grid,
+.lock-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.lock-type-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.asset-choice,
+.lock-type-card,
+.lock-result-row {
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--text);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+.asset-choice,
+.lock-type-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 12px;
+  font-weight: 800;
+}
+
+.asset-choice.selected,
+.lock-type-card.selected {
+  border-color: rgba(217, 173, 74, 0.58);
+  background: rgba(217, 173, 74, 0.1);
+}
+
+.input-with-icon {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 18px;
+  gap: 8px;
+  align-items: center;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 0 12px;
+}
+
+.input-with-icon input {
+  border: 0;
+  background: transparent;
+  padding-left: 0;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.detected-asset-panel,
+.v3-note,
+.v3-review-note,
+.permanent-warning,
+.schedule-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--card-2);
+  padding: 14px;
+  margin: 14px 0;
+}
+
+.v3-note,
+.permanent-warning {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.v3-note span,
+.v3-review-note span,
+.schedule-preview p {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.detected-title {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.detected-meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.detected-grid {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.detected-grid span {
+  color: var(--dim);
+}
+
+.percent-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.percent-row button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: var(--r-sm);
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.permanent-ack {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: var(--text);
+  font-size: 13px;
+  margin: 14px 0;
+}
+
+.permanent-warning {
+  color: var(--warning);
+}
+
+.explorer-toolbar {
+  padding: 0 28px 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.search-bar.compact {
+  max-width: 760px;
+}
+
+.lock-result-list {
+  display: grid;
+  gap: 10px;
+  padding: 0 28px 28px;
+}
+
+.lock-result-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 42px minmax(160px, 1fr) minmax(150px, 0.5fr) minmax(140px, 0.45fr) auto 18px;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 14px;
+  text-align: left;
+}
+
+.lock-result-row:hover {
+  border-color: rgba(217, 173, 74, 0.42);
+}
+
+.lock-result-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(217, 173, 74, 0.09);
+  color: var(--accent);
+}
+
+.lock-result-title {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.lock-result-meta,
+.lock-result-stat small {
+  color: var(--dim);
+  font-size: 11.5px;
+  margin-top: 3px;
+}
+
+.lock-result-stat span {
+  display: block;
+  color: var(--text);
+  font-weight: 800;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.empty-state {
+  margin: 0 28px 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--card);
+  padding: 28px;
+  color: var(--muted);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.my-lock-section {
+  margin-top: 8px;
+}
+
 @media (max-width: 420px) {
   .topbar {
     padding: 0 10px;

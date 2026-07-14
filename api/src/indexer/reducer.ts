@@ -1,6 +1,6 @@
 import { AssetType, LockType, PrismaClient } from "@prisma/client";
 import { Contract, EventLog, Log, ZeroAddress } from "ethers";
-import { refreshAssetCalculations, syncAssetMetadata } from "../services/metadata.js";
+import { refreshAssetCalculations, refreshV3PositionLockValue, syncAssetMetadata } from "../services/metadata.js";
 import { JsonRpcProvider } from "ethers";
 
 type ParsedLog = ReturnType<import("ethers").Interface["parseLog"]>;
@@ -317,4 +317,5 @@ export async function applyGenesisV3PositionLockerEvent(
   if (provider) {
     await syncAssetMetadata(chainId, launchToken, AssetType.TOKEN, provider).catch(() => undefined);
   }
+  await refreshV3PositionLockValue(createdLock.id);
 }

@@ -329,3 +329,28 @@ export async function refreshAssetCalculations(chainId: number, assetAddress: st
     });
   }
 }
+
+export async function refreshV3PositionLockValue(lockDbId: string) {
+  const lock = await db.lock.findUnique({ where: { id: lockDbId } });
+  if (!lock || lock.assetType !== AssetType.V3_POSITION) return;
+  const tokenAddress = (lock.launchTokenAddress || lock.assetAddress).toLowerCase();
+  const poolAddress = lock.poolAddress?.toLowerCase();
+  if (!tokenAddress || !poolAddress) return;
+
+  try {
+    const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`, {
+      headers: { accept: "application/json" }
+    });
+    if (!response.ok) return;
+    const payload = await response.json() as { pairs?: Array<{ pairAddress?: string; liquidity?: { usd?: number | string } }> };
+    const pair = payload.pairs?.find((item) => item.pairAddress?.toLowerCase() === poolAddress);
+    const value = Number(pair?.liquidity?.usd ?? 0);
+    if (!Number.isFinite(value) || value <= 0) return;
+    await db.lock.update({
+      where: { id: lock.id },
+      data: { tvlUsd: value }
+    });
+  } catch {
+    // Price lookups are best-effort. The lock proof remains valid without a USD estimate.
+  }
+}

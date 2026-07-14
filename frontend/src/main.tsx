@@ -11,6 +11,7 @@ import { LocksExplorer } from './pages/LocksExplorer'
 import { LockDetail } from './pages/LockDetail'
 import { Analytics } from './pages/Analytics'
 import { Dashboard } from './pages/Dashboard'
+import { MyLocks } from './pages/MyLocks'
 import { SearchPage } from './pages/Search'
 import { Chains } from './pages/Chains'
 import { APIPage } from './pages/API'
@@ -21,6 +22,7 @@ import { LPDetail } from './pages/LPDetail'
 import { UnlockCalendar } from './pages/UnlockCalendar'
 import { BadgeEmbed } from './pages/BadgeEmbed'
 import { Projects } from './pages/Projects'
+import { Positions } from './pages/Positions'
 import { ProjectDetail } from './pages/ProjectDetail'
 import { DAO } from './pages/DAO'
 import { Admin } from './pages/Admin'
@@ -50,6 +52,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="search" element={<SearchPage />} />
               <Route path="create" element={<CreateLock />} />
               <Route path="locks" element={<LocksExplorer />} />
+              <Route path="positions" element={<Positions />} />
               <Route path="lock/:chainId/:contractAddress/:id" element={<LockDetail />} />
               <Route path="lock/:chainId/:id" element={<LockDetail />} />
               <Route path="lock/:id" element={<LockDetail />} />
@@ -59,6 +62,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="projects" element={<Projects />} />
               <Route path="project/:address" element={<ProjectDetail />} />
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="my-locks" element={<MyLocks />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="chains" element={<Chains />} />
               <Route path="community-grants" element={<CommunityGrants />} />

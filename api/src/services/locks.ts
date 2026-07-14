@@ -2,6 +2,13 @@ import { AssetType, Lock, LockType } from "@prisma/client";
 import { db } from "../db.js";
 import { chains, lowLockPercentageThreshold, shortLockDays } from "../config.js";
 
+export type LockListFilters = {
+  limit?: number;
+  assetType?: "token" | "lp" | "v3_position";
+  lockType?: "timed" | "vesting" | "permanent";
+  unlockingSoon?: boolean;
+};
+
 type LockWithRelations = Lock & {
   token: {
     name: string | null;
@@ -69,7 +76,7 @@ function buildWarnings(lock: LockWithRelations, totalAssetLockedPercentage: numb
 
 function badgesFor(lock: LockWithRelations) {
   if (lock.assetType === AssetType.V3_POSITION) {
-    return ["V3 Position Locked", "GenesisPad Launch", "Permanently Locked"];
+    return ["Liquidity Position Locked", "Genesis Launch", "Permanently Locked"];
   }
   const badges = [lock.assetType === AssetType.LP ? "LP Locked" : "Token Locked"];
   badges.push(lock.lockType === LockType.VESTING ? "Vesting Lock" : "Cliff Lock");
@@ -79,6 +86,7 @@ function badgesFor(lock: LockWithRelations) {
 
 function serializeLock(lock: LockWithRelations, explorerUrl?: string | null) {
   const claimable = claimableAmount(lock);
+  const feeEvents = lock.events.filter((event) => event.eventName === "FeesCollected");
   return {
     lockId: lock.lockId.toString(),
     chainId: lock.chainId,
@@ -106,6 +114,28 @@ function serializeLock(lock: LockWithRelations, explorerUrl?: string | null) {
     metadataURI: lock.metadataURI,
     lockedPercentage: lock.lockedPercentage?.toString() ?? null,
     tvlUsd: lock.tvlUsd?.toString() ?? null,
+    valueSource: lock.tvlUsd ? "estimated_fiat" : "unavailable",
+    accruedFees: lock.assetType === AssetType.V3_POSITION ? {
+      token0: null,
+      token1: null,
+      valueUsd: null,
+      source: "unavailable",
+      note: "Accrued trading fees are separate from locked liquidity and are not included in TVL unless indexed fee data is available."
+    } : null,
+    feeCollectionHistory: feeEvents.map((event) => ({
+      txHash: event.txHash,
+      txUrl: txUrl(explorerUrl, event.txHash),
+      blockNumber: event.blockNumber.toString(),
+      logIndex: event.logIndex,
+      createdAt: event.createdAt.toISOString(),
+      payload: event.payload
+    })),
+    genesisPadLaunchVerification: lock.assetType === AssetType.V3_POSITION ? {
+      verified: lock.events.some((event) => event.eventName === "PositionLockCreated"),
+      source: "indexed_on_chain_event",
+      label: "Official Genesis Launch Position",
+      detail: "Permanent liquidity lock verified"
+    } : null,
     token: lock.token,
     badges: badgesFor(lock),
     createdTxHash: lock.createdTxHash,
@@ -156,6 +186,7 @@ export async function getChains() {
 
 export async function getGlobalStats() {
   const [locks, feeStats, uniqueLockers] = await Promise.all([db.lock.findMany(), db.feeStat.findMany(), db.wallet.count()]);
+  const isLiquidityLock = (lock: Lock) => lock.assetType === AssetType.LP || lock.assetType === AssetType.V3_POSITION;
   const chainRows = await getChains();
   const byChain = chainRows.map((chain) => {
     const chainLocks = locks.filter((lock) => lock.chainId === chain.id);
@@ -176,13 +207,18 @@ export async function getGlobalStats() {
     totalActiveLocks: locks.filter((lock) => remainingAmount(lock) > 0n && !lock.isPermanent).length,
     totalPermanentLocks: locks.filter((lock) => lock.isPermanent).length,
     totalTvl: locks.reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
-    totalLpTvl: locks.filter((lock) => lock.assetType === AssetType.LP).reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
+    totalLpTvl: locks.filter(isLiquidityLock).reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
     totalTokenTvl: locks.filter((lock) => lock.assetType === AssetType.TOKEN).reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
     totalV3PositionLocks: locks.filter((lock) => lock.assetType === AssetType.V3_POSITION).length,
+    totalV3AccruedFeesUsd: null,
     totalFeesCollected: feeStats.reduce((sum, fee) => sum + BigInt(fee.amount), 0n).toString(),
     uniqueLockers,
     byChain
   };
+}
+
+export async function listLockedPositions(limit = 100) {
+  return listLocks({ limit, assetType: "v3_position" });
 }
 
 export async function getAssetStatus(chainId: number, assetAddress?: string, lockId?: bigint, contractAddress?: string) {
@@ -231,9 +267,23 @@ export async function getAssetStatus(chainId: number, assetAddress?: string, loc
   };
 }
 
-export async function listLocks(limit = 50) {
+export async function listLocks(filters: number | LockListFilters = 50) {
+  const options: LockListFilters = typeof filters === "number" ? { limit: filters } : filters;
+  const limit = options.limit ?? 50;
+  const now = new Date();
+  const soon = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const where = {
+    ...(options.assetType ? {
+      assetType: options.assetType === "token" ? AssetType.TOKEN : options.assetType === "lp" ? AssetType.LP : AssetType.V3_POSITION
+    } : {}),
+    ...(options.lockType === "vesting" ? { lockType: LockType.VESTING } : {}),
+    ...(options.lockType === "permanent" ? { isPermanent: true } : {}),
+    ...(options.lockType === "timed" ? { isPermanent: false, lockType: LockType.CLIFF } : {}),
+    ...(options.unlockingSoon ? { isPermanent: false, endTime: { gte: now, lte: soon } } : {})
+  };
   const chainsById = new Map((await db.chain.findMany()).map((chain) => [chain.id, chain]));
   const locks = await db.lock.findMany({
+    where,
     include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
     orderBy: { createdAt: "desc" },
     take: Math.min(Math.max(limit, 1), 100)
@@ -247,7 +297,13 @@ export async function listLocks(limit = 50) {
 export async function getWalletLocks(chainId: number, walletAddress: string) {
   const chain = await db.chain.findUnique({ where: { id: chainId } });
   const locks = await db.lock.findMany({
-    where: { chainId, ownerAddress: walletAddress.toLowerCase() },
+    where: {
+      chainId,
+      OR: [
+        { ownerAddress: walletAddress.toLowerCase() },
+        { beneficiaryAddress: walletAddress.toLowerCase() }
+      ]
+    },
     include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
     orderBy: { createdAt: "desc" }
   }) as LockWithRelations[];
@@ -261,7 +317,20 @@ export async function search(query: string) {
   const [tokens, pairs, locks] = await Promise.all([
     db.token.findMany({ where: { OR: [{ address: q }, { symbol: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }] }, take: 20 }),
     db.pair.findMany({ where: { address: q }, take: 20 }),
-    db.lock.findMany({ where: { OR: [{ assetAddress: q }, { ownerAddress: q }, { beneficiaryAddress: q }] }, take: 20 })
+    db.lock.findMany({
+      where: {
+        OR: [
+          { assetAddress: q },
+          { ownerAddress: q },
+          { beneficiaryAddress: q },
+          { poolAddress: q },
+          { positionManager: q },
+          { positionTokenId: q },
+          ...(q.match(/^\d+$/) ? [{ lockId: BigInt(q) }] : [])
+        ]
+      },
+      take: 20
+    })
   ]);
 
   return {

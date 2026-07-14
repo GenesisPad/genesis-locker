@@ -19,8 +19,8 @@ type StatDef = { label: string; icon: typeof Layers; value: (s: GlobalStats) => 
 // show the real current value with no 24h trend rather than a fabricated one.
 const STAT_DEFS: StatDef[] = [
   { label: 'Total TVL', icon: Layers, value: s => formatUsd(s.totalTvl) },
-  { label: 'LP Locks TVL', icon: TrendingUp, value: s => formatUsd(s.totalLpTvl) },
-  { label: 'Token Locks TVL', icon: Coins, value: s => formatUsd(s.totalTokenTvl) },
+  { label: 'Locked Positions', icon: TrendingUp, value: s => (s.totalV3PositionLocks ?? 0).toLocaleString() },
+  { label: 'Collected Fees', icon: Coins, value: s => s.totalV3AccruedFeesUsd ? formatUsd(s.totalV3AccruedFeesUsd) : 'Unavailable' },
   { label: 'Total Locks', icon: Lock, value: s => (s.totalLocks ?? 0).toLocaleString() },
   { label: 'Permanent', icon: Infinity, value: s => (s.totalPermanentLocks ?? 0).toLocaleString() },
   { label: 'Unique Lockers', icon: Users, value: s => (s.uniqueLockers ?? 0).toLocaleString() },
@@ -242,22 +242,18 @@ export function Home() {
             BNB Chain
           </div>
           <h1 className="hero-title">
-            Lock with <span className="accent">Confidence.</span>
-            <br />
-            Build with <span className="accent">Trust.</span>
+            Genesis <span className="accent">Locker</span>
           </h1>
           <p className="hero-sub">
-            Genesis Locker is a decentralized liquidity and token locker
-            built primarily for Robinhood Chain, with support for Ethereum,
-            Base and BNB Chain — 100% on-chain transparency.
+            One proof surface for ERC20 tokens, liquidity tokens and Genesis launch positions. On-chain facts first, no fabricated values.
           </p>
           <div className="hero-actions">
             <button className="btn-primary" onClick={() => navigate('/create')}>
               <Lock size={14} />
-              Create LP Lock
+              Create a Lock
             </button>
-            <button className="btn-secondary" onClick={() => navigate('/create')}>
-              Create Token Lock
+            <button className="btn-secondary" onClick={() => navigate('/locks')}>
+              View Locks
             </button>
           </div>
         </motion.div>
@@ -317,7 +313,7 @@ export function Home() {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && navigate(`/search?q=${query}`)}
-            placeholder="Search token, LP pair, wallet address or lock ID"
+            placeholder="Search token, wallet, pool, position ID or lock ID"
           />
           <button className="search-submit" onClick={() => navigate(`/search?q=${query}`)}>
             Search
@@ -400,13 +396,13 @@ export function Home() {
                       </td>
                       <td>
                         <div className={`type-badge ${lock.assetType}`}>
-                          {lock.assetType === 'lp' ? 'LP Lock' : 'Token Lock'}
+                          {lock.assetType === 'v3_position' ? 'Locked Position' : lock.assetType === 'lp' ? 'Liquidity Token' : 'Token'}
                         </div>
                         <div className="mode-label">{lock.isPermanent ? 'Permanent' : lock.lockType === 'vesting' ? 'Vesting' : 'Cliff'}</div>
                       </td>
                       <td>
                         <div className="amt-main">{formatAmount(lock.amount, lock.token?.decimals ?? 18)}</div>
-                        <div className="amt-usd">{lock.tvlUsd ? formatUsd(lock.tvlUsd) : '—'}</div>
+                        <div className="amt-usd">{lock.tvlUsd ? formatUsd(lock.tvlUsd) : 'Unavailable'}</div>
                       </td>
                       <td>
                         <div className="date-main">{lock.isPermanent ? 'Permanently' : formatDate(lock.unlockDate)}</div>
@@ -517,11 +513,11 @@ export function Home() {
                   <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{assetLabel(lock)}</div>
                   <div style={{ fontSize: 11, color: 'var(--dim)', display: 'flex', gap: 5 }}>
                     <span style={{ fontWeight: 600 }}>{chainName}</span>
-                    · {lock.assetType === 'lp' ? 'LP' : 'Token'}
+                    · {lock.assetType === 'v3_position' ? 'Position' : lock.assetType === 'lp' ? 'Liquidity' : 'Token'}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{lock.tvlUsd ? formatUsd(lock.tvlUsd) : '—'}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{lock.tvlUsd ? formatUsd(lock.tvlUsd) : 'Unavailable'}</div>
                   <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: days <= 7 ? 'rgba(239,68,68,0.1)' : 'rgba(225,183,92,0.1)', color: days <= 7 ? 'var(--danger)' : 'var(--warning)', border: `1px solid ${days <= 7 ? 'rgba(239,68,68,0.25)' : 'rgba(225,183,92,0.25)'}` }}>
                     {days}d
                   </span>

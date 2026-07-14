@@ -179,9 +179,9 @@ export function LockDetail() {
             <div className="detail-card-label">Asset Information</div>
             <div className="detail-field"><span className="detail-field-label">Asset</span><span className="detail-field-val">{lockAssetLabel(lock)}</span></div>
             <div className="detail-field"><span className="detail-field-label">{lock.assetType === 'v3_position' ? 'Launch Token' : 'Asset Address'}</span><span className="detail-field-val addr">{shortAddress(lock.assetAddress)} <CopyBtn value={lock.assetAddress} /></span></div>
-            {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">V3 Pool</span><span className="detail-field-val addr">{shortAddress(lock.poolAddress)} {lock.poolAddress && <CopyBtn value={lock.poolAddress} />}</span></div>}
-            {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">Position Manager</span><span className="detail-field-val addr">{shortAddress(lock.positionManager)} {lock.positionManager && <CopyBtn value={lock.positionManager} />}</span></div>}
-            {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">Position NFT ID</span><span className="detail-field-val">#{lock.positionTokenId}</span></div>}
+            {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">Trading Pool</span><span className="detail-field-val addr">{shortAddress(lock.poolAddress)} {lock.poolAddress && <CopyBtn value={lock.poolAddress} />}</span></div>}
+            {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">Position Vault</span><span className="detail-field-val addr">{shortAddress(lock.positionManager)} {lock.positionManager && <CopyBtn value={lock.positionManager} />}</span></div>}
+            {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">Position ID</span><span className="detail-field-val">#{lock.positionTokenId}</span></div>}
             <div className="detail-field">
               <span className="detail-field-label">Asset Page</span>
               <span className="detail-field-val">
@@ -190,7 +190,7 @@ export function LockDetail() {
                   style={{ fontSize: 11.5, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
                 >
                   <ExternalLink size={11} />
-                  {lock.assetType === 'v3_position' ? 'View Launch Token Detail' : lock.assetType === 'lp' ? 'View LP Detail' : 'View Token Detail'}
+                  {lock.assetType === 'v3_position' ? 'View Launch Token' : lock.assetType === 'lp' ? 'View Liquidity Detail' : 'View Token Detail'}
                 </button>
               </span>
             </div>
@@ -226,6 +226,12 @@ export function LockDetail() {
 
         {lock.assetType !== 'v3_position' ? <div className="detail-card" style={{ marginBottom: 16 }}>
           <div className="detail-card-label">Wallet Actions</div>
+          {lock.isPermanent ? (
+            <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+              Permanent: withdrawal does not exist for this lock. No withdrawal action is shown because the contract rejects withdrawals for permanent locks.
+            </div>
+          ) : (
+            <>
           <div style={{ fontSize: 11.5, color: 'var(--dim)', marginBottom: 14 }}>
             Only the lock owner ({shortAddress(lock.owner)}) can extend, add amount, permanently lock, or transfer. Only the beneficiary ({shortAddress(lock.beneficiary)}) can withdraw claimable tokens.
           </div>
@@ -289,12 +295,34 @@ export function LockDetail() {
               </button>
             </div>
           </div>
+            </>
+          )}
         </div> : (
           <div className="detail-card" style={{ marginBottom: 16 }}>
             <div className="detail-card-label">Position Controls</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-              This Uniswap V3 position NFT is permanently held by the Genesis V3 position locker. LP principal cannot be withdrawn, transferred, decreased, or migrated by the creator, protocol, or locker owner.
+              This liquidity position is permanently held by Genesis Locker. LP principal cannot be withdrawn, transferred, reduced, or moved by the creator, protocol, or locker owner.
             </div>
+            <div className="permanent-warning" style={{ marginTop: 14 }}>
+              <Infinity size={16} />
+              <span>Withdrawal does not exist for this lock. Only accrued fees may be collected through the protocol fee flow.</span>
+            </div>
+          </div>
+        )}
+
+        {lock.assetType === 'v3_position' && (
+          <div className="detail-card" style={{ marginBottom: 16 }}>
+            <div className="detail-card-label">Accrued Fees</div>
+            <div className="detail-field"><span className="detail-field-label">Token0 fees</span><span className="detail-field-val">{lock.accruedFees?.token0 ?? 'Unavailable'}</span></div>
+            <div className="detail-field"><span className="detail-field-label">Token1 fees</span><span className="detail-field-val">{lock.accruedFees?.token1 ?? 'Unavailable'}</span></div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginTop: 10 }}>
+              Collecting fees does not reduce liquidity. Fee data is separate from locked principal and is not included in TVL unless indexed data is available.
+            </div>
+            {lock.genesisPadLaunchVerification?.verified && (
+              <div className="form-alert" style={{ marginTop: 12 }}>
+                Official Genesis launch position. Permanent liquidity lock verified from on-chain activity.
+              </div>
+            )}
           </div>
         )}
 

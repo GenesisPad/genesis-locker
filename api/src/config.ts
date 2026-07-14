@@ -5,7 +5,7 @@ const configuredChains = [
     id: 4663, name: "Robinhood Chain", symbol: "ETH",
     rpcEnvKey: "ROBINHOOD_RPC_URL", rpcUrl: process.env.ROBINHOOD_RPC_URL,
     lockerAddress: process.env.ROBINHOOD_LOCKER_ADDRESS,
-    v3PositionLockerAddress: process.env.ROBINHOOD_V3_POSITION_LOCKER_ADDRESS || "0x9d1838aE9869C1b0c7E76029c97112834ec8b1B5",
+    v3PositionLockerAddress: process.env.ROBINHOOD_V3_POSITION_LOCKER_ADDRESS || "0xC02d4b889281A40f0598c4bfB07B5bCccccC05C8",
     fee: "0.01", explorerUrl: "https://robinhoodchain.blockscout.com",
     dotColor: "#d9ad4a", geckoTerminalId: null, feeLabel: "0.01 ETH",
     // Canonical wrapped-native token address, used to price LP pairs by reserve

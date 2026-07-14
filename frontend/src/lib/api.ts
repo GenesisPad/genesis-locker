@@ -58,6 +58,28 @@ export type ApiLock = {
   metadataURI: string | null
   lockedPercentage: string | null
   tvlUsd: string | null
+  valueSource?: 'estimated_fiat' | 'unavailable' | string
+  accruedFees?: {
+    token0: string | null
+    token1: string | null
+    valueUsd: string | null
+    source: string
+    note?: string
+  } | null
+  feeCollectionHistory?: Array<{
+    txHash: string
+    txUrl: string | null
+    blockNumber: string
+    logIndex: number
+    createdAt: string
+    payload: unknown
+  }>
+  genesisPadLaunchVerification?: {
+    verified: boolean
+    source: string
+    label: string
+    detail: string
+  } | null
   token?: {
     name: string | null
     symbol: string | null
@@ -116,6 +138,7 @@ export type GlobalStats = {
   totalLpTvl: string
   totalTokenTvl: string
   totalV3PositionLocks?: number
+  totalV3AccruedFeesUsd?: string | null
   totalFeesCollected: string
   uniqueLockers: number
   byChain: Array<{ chainId: number; name: string; totalLocks: number; totalActiveLocks: number; totalPermanentLocks: number; totalTvl: string; totalFeesCollected: string }>
@@ -130,12 +153,20 @@ async function apiGet<T>(path: string): Promise<T> {
 export const api = {
   chains: () => apiGet<ChainInfo[]>('/v1/chains'),
   stats: () => apiGet<GlobalStats>('/v1/stats'),
-  locks: (limit = 50) => apiGet<{ locks: ApiLock[] }>(`/v1/locks?limit=${limit}`),
+  locks: (limit = 50, filters?: { assetType?: 'token' | 'lp' | 'v3_position'; lockType?: 'timed' | 'vesting' | 'permanent'; unlockingSoon?: boolean }) => {
+    const params = new URLSearchParams({ limit: String(limit) })
+    if (filters?.assetType) params.set('assetType', filters.assetType)
+    if (filters?.lockType) params.set('lockType', filters.lockType)
+    if (filters?.unlockingSoon) params.set('unlockingSoon', 'true')
+    return apiGet<{ locks: ApiLock[] }>(`/v1/locks?${params}`)
+  },
+  positions: (limit = 100) => apiGet<{ locks: ApiLock[] }>(`/v1/positions?limit=${limit}`),
   lock: (chainId: number, lockId: string, contractAddress?: string) => apiGet<AssetStatus>(
     contractAddress ? `/v1/locks/${chainId}/${contractAddress}/${lockId}` : `/v1/locks/${chainId}/${lockId}`
   ),
   search: (query: string) => apiGet<{ query: string; results: SearchResult[] }>(`/v1/search?q=${encodeURIComponent(query)}`),
-  walletLocks: (chainId: number, address: string) => apiGet<{ chainId: number; walletAddress: string; locks: ApiLock[] }>(`/v1/wallets/${chainId}/${address}/locks`)
+  walletLocks: (chainId: number, address: string) => apiGet<{ chainId: number; walletAddress: string; locks: ApiLock[] }>(`/v1/wallets/${chainId}/${address}/locks`),
+  myLocks: (chainId: number, address: string) => apiGet<{ chainId: number; walletAddress: string; locks: ApiLock[] }>(`/v1/my-locks/${chainId}/${address}`)
 }
 
 export function shortAddress(value?: string | null) {
@@ -144,8 +175,10 @@ export function shortAddress(value?: string | null) {
 }
 
 export function formatUsd(value?: string | null) {
-  const num = Number(value || 0)
-  if (!Number.isFinite(num) || num === 0) return '$0'
+  if (value === null || value === undefined || value === '') return 'Unavailable'
+  const num = Number(value)
+  if (!Number.isFinite(num)) return 'Unavailable'
+  if (num === 0) return '$0'
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(num)
 }
 
@@ -169,12 +202,12 @@ export function formatAmount(value?: string | null, decimals = 18) {
 }
 
 export function lockTypeLabel(lock: Pick<ApiLock, 'assetType'>) {
-  if (lock.assetType === 'v3_position') return 'V3 Position Lock'
+  if (lock.assetType === 'v3_position') return 'Locked Liquidity Position'
   return lock.assetType === 'lp' ? 'LP Lock' : 'Token Lock'
 }
 
 export function lockAssetLabel(lock: Pick<ApiLock, 'assetType' | 'token' | 'positionTokenId' | 'assetAddress' | 'lockId'>) {
-  if (lock.assetType === 'v3_position') return `V3 Position #${lock.positionTokenId || lock.lockId || '-'}`
+  if (lock.assetType === 'v3_position') return `Locked Position #${lock.positionTokenId || lock.lockId || '-'}`
   return lock.token?.symbol || shortAddress(lock.assetAddress)
 }
 

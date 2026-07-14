@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { getAssetStatus, getChains, getGlobalStats, getWalletLocks, listLocks, search } from "../services/locks.js";
+import { getAssetStatus, getChains, getGlobalStats, getWalletLocks, listLockedPositions, listLocks, search } from "../services/locks.js";
 
 export const router = Router();
 
@@ -41,7 +41,22 @@ router.get("/locks/:chainId/:contractAddress/:lockId", async (req, res) => {
 });
 
 router.get("/locks", async (req, res) => {
-  res.json(await listLocks(Number(req.query.limit || 50)));
+  const assetType = String(req.query.assetType || "");
+  const lockType = String(req.query.lockType || "");
+  res.json(await listLocks({
+    limit: Number(req.query.limit || 50),
+    assetType: assetType === "token" || assetType === "lp" || assetType === "v3_position" ? assetType : undefined,
+    lockType: lockType === "timed" || lockType === "vesting" || lockType === "permanent" ? lockType : undefined,
+    unlockingSoon: req.query.unlockingSoon === "true"
+  }));
+});
+
+router.get("/positions", async (req, res) => {
+  res.json(await listLockedPositions(Number(req.query.limit || 100)));
+});
+
+router.get("/my-locks/:chainId/:walletAddress", async (req, res) => {
+  res.json(await getWalletLocks(chainParam.parse(req.params.chainId), addressParam.parse(req.params.walletAddress)));
 });
 
 router.get("/tokens/:chainId/:tokenAddress/locks", async (req, res) => {
