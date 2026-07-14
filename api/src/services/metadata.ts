@@ -333,23 +333,49 @@ export async function refreshAssetCalculations(chainId: number, assetAddress: st
 export async function refreshV3PositionLockValue(lockDbId: string) {
   const lock = await db.lock.findUnique({ where: { id: lockDbId } });
   if (!lock || lock.assetType !== AssetType.V3_POSITION) return;
-  const tokenAddress = (lock.launchTokenAddress || lock.assetAddress).toLowerCase();
+  const chain = chains.find((item) => item.id === lock.chainId);
+  const wrappedNative = chain?.wrappedNativeAddress?.toLowerCase();
+  const candidates = Array.from(new Set([
+    lock.launchTokenAddress?.toLowerCase(),
+    lock.pairedAssetAddress?.toLowerCase(),
+    lock.assetAddress?.toLowerCase()
+  ].filter(Boolean) as string[]));
   const poolAddress = lock.poolAddress?.toLowerCase();
-  if (!tokenAddress || !poolAddress) return;
+  if (!candidates.length || !poolAddress) return;
 
   try {
-    const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`, {
-      headers: { accept: "application/json" }
-    });
-    if (!response.ok) return;
-    const payload = await response.json() as { pairs?: Array<{ pairAddress?: string; liquidity?: { usd?: number | string } }> };
-    const pair = payload.pairs?.find((item) => item.pairAddress?.toLowerCase() === poolAddress);
+    const payloads = await Promise.all(candidates.map(async (tokenAddress) => {
+      const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`, {
+        headers: { accept: "application/json" }
+      });
+      if (!response.ok) return null;
+      return response.json() as Promise<{
+        pairs?: Array<{
+          pairAddress?: string;
+          liquidity?: { usd?: number | string };
+          baseToken?: { address?: string };
+          quoteToken?: { address?: string };
+        }>;
+      }>;
+    }));
+    const pair = payloads
+      .flatMap((payload) => payload?.pairs ?? [])
+      .find((item) => item.pairAddress?.toLowerCase() === poolAddress);
     const value = Number(pair?.liquidity?.usd ?? 0);
     if (!Number.isFinite(value) || value <= 0) return;
+    const base = pair?.baseToken?.address?.toLowerCase();
+    const quote = pair?.quoteToken?.address?.toLowerCase();
+    const publicToken = base && base !== wrappedNative ? base : quote && quote !== wrappedNative ? quote : undefined;
     await db.lock.update({
       where: { id: lock.id },
-      data: { tvlUsd: value }
+      data: {
+        tvlUsd: value,
+        ...(publicToken ? { assetAddress: publicToken, launchTokenAddress: publicToken } : {})
+      }
     });
+    if (publicToken && chain) {
+      await syncAssetMetadata(lock.chainId, publicToken, AssetType.TOKEN, new JsonRpcProvider(chain.rpcUrl)).catch(() => undefined);
+    }
   } catch {
     // Price lookups are best-effort. The lock proof remains valid without a USD estimate.
   }
