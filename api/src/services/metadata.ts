@@ -369,6 +369,13 @@ export async function refreshV3PositionLockValue(lockDbId: string) {
     const base = pair?.baseToken?.address?.toLowerCase();
     const quote = pair?.quoteToken?.address?.toLowerCase();
     const publicToken = base && base !== wrappedNative ? base : quote && quote !== wrappedNative ? quote : undefined;
+    if (publicToken) {
+      await db.token.upsert({
+        where: { chainId_address: { chainId: lock.chainId, address: publicToken } },
+        create: { chainId: lock.chainId, address: publicToken },
+        update: {}
+      });
+    }
     await db.lock.update({
       where: { id: lock.id },
       data: {
