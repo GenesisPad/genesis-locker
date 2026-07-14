@@ -346,7 +346,10 @@ export async function refreshV3PositionLockValue(lockDbId: string) {
   try {
     const payloads = await Promise.all(candidates.map(async (tokenAddress) => {
       const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`, {
-        headers: { accept: "application/json" }
+        headers: {
+          accept: "application/json",
+          "user-agent": "GenesisLocker/1.0 (+https://locker.genesispad.app)"
+        }
       });
       if (!response.ok) return null;
       return response.json() as Promise<{
