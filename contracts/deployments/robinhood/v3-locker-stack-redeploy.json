@@ -1,0 +1,12 @@
+{
+  "network": "robinhood",
+  "chainId": "4663",
+  "deployer": "0x8CFa84924011b19765136Baea669AC81FE8bB561",
+  "genesisV3PositionLocker": "0x1B5788E46c692FD74681fE08E337Fb3a06E4ECff",
+  "genesisFeeDistributionRegistry": "0x627452b0de8F0A982d24E3618E58Abf4CBb518Ca",
+  "genesisLockerRegistry": "0x3B9dd86E445C1B81CEdCac1a2E6Cf23Fb907049A",
+  "finalOwner": "0x8CFa84924011b19765136Baea669AC81FE8bB561",
+  "ownershipTransferred": false,
+  "ownershipTransferNote": "Fresh locker deployed for corrected V3 stack because the prior GenesisV3PositionLocker launchFactory binding is one-way and already points to the old factory. Ownership remains with finalOwner/deployer for direct-v3-stack redeploy wiring.",
+  "deployedAt": "2026-07-15T18:00:00.000Z"
+}
