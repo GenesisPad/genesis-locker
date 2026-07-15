@@ -1,4 +1,5 @@
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4010'
+export const GENESIS_API_BASE = (import.meta.env.VITE_GENESIS_API_BASE_URL || 'https://api.genesispad.app/api').replace(/\/$/, '')
 
 /** Uploads a compressed image data URL to the API and returns its permanent hosted URL. */
 export async function uploadImage(dataUrl: string): Promise<string> {
@@ -144,10 +145,41 @@ export type GlobalStats = {
   byChain: Array<{ chainId: number; name: string; totalLocks: number; totalActiveLocks: number; totalPermanentLocks: number; totalTvl: string; totalFeesCollected: string }>
 }
 
+export type GenesisProjectMetadata = {
+  name?: string | null
+  symbol?: string | null
+  description?: string | null
+  logo?: string | null
+  banner?: string | null
+  website?: string | null
+  twitter?: string | null
+  telegram?: string | null
+  discord?: string | null
+}
+
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`)
   if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`)
   return response.json() as Promise<T>
+}
+
+function unwrapGenesisPayload(body: any): any {
+  return body?.data?.data ?? body?.data ?? body
+}
+
+function genesisImageUrl(value: any): string | null {
+  if (!value) return null
+  if (typeof value === 'string') return value
+  const url = value.url || value.secureUrl || value.path
+  if (!url || typeof url !== 'string') return null
+  if (url.startsWith('http')) return url
+  return `${GENESIS_API_BASE.replace(/\/api$/, '')}${url.startsWith('/') ? url : `/${url}`}`
+}
+
+async function genesisGet<T>(path: string): Promise<T | null> {
+  const response = await fetch(`${GENESIS_API_BASE}${path}`)
+  if (!response.ok) return null
+  return unwrapGenesisPayload(await response.json().catch(() => null)) as T | null
 }
 
 export const api = {
@@ -166,7 +198,23 @@ export const api = {
   ),
   search: (query: string) => apiGet<{ query: string; results: SearchResult[] }>(`/v1/search?q=${encodeURIComponent(query)}`),
   walletLocks: (chainId: number, address: string) => apiGet<{ chainId: number; walletAddress: string; locks: ApiLock[] }>(`/v1/wallets/${chainId}/${address}/locks`),
-  myLocks: (chainId: number, address: string) => apiGet<{ chainId: number; walletAddress: string; locks: ApiLock[] }>(`/v1/my-locks/${chainId}/${address}`)
+  myLocks: (chainId: number, address: string) => apiGet<{ chainId: number; walletAddress: string; locks: ApiLock[] }>(`/v1/my-locks/${chainId}/${address}`),
+  genesisProject: async (tokenAddress: string): Promise<GenesisProjectMetadata | null> => {
+    const token = await genesisGet<any>(`/token?tokenAddress=${encodeURIComponent(tokenAddress)}&include=image`).catch(() => null)
+    if (!token) return null
+    const image = token.image || token.logo || token.logoUrl || token.imageUrl
+    return {
+      name: token.name ?? token.tokenName ?? null,
+      symbol: token.symbol ?? token.tokenSymbol ?? null,
+      description: token.description ?? null,
+      logo: genesisImageUrl(image),
+      banner: genesisImageUrl(token.banner || token.bannerImage || token.coverImage),
+      website: token.website ?? token.websiteUrl ?? null,
+      twitter: token.twitter ?? token.x ?? token.twitterUrl ?? null,
+      telegram: token.telegram ?? token.telegramUrl ?? null,
+      discord: token.discord ?? token.discordUrl ?? null,
+    }
+  },
 }
 
 export function shortAddress(value?: string | null) {
@@ -204,6 +252,14 @@ export function formatAmount(value?: string | null, decimals = 18) {
 export function lockTypeLabel(lock: Pick<ApiLock, 'assetType'>) {
   if (lock.assetType === 'v3_position') return 'Locked Liquidity Position'
   return lock.assetType === 'lp' ? 'LP Lock' : 'Token Lock'
+}
+
+export function lockProjectName(lock: Pick<ApiLock, 'token' | 'assetAddress'>) {
+  return lock.token?.name || lock.token?.symbol || shortAddress(lock.assetAddress)
+}
+
+export function lockProjectTicker(lock: Pick<ApiLock, 'token' | 'assetAddress'>) {
+  return lock.token?.symbol || shortAddress(lock.assetAddress)
 }
 
 export function lockAssetLabel(lock: Pick<ApiLock, 'assetType' | 'token' | 'positionTokenId' | 'assetAddress' | 'lockId'>) {

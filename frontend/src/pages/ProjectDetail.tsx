@@ -6,7 +6,7 @@ import {
   Copy, Shield, Lock, Infinity, CheckCircle, BarChart2,
   AlertTriangle, Layers, XCircle,
 } from 'lucide-react'
-import { ApiLock, api, formatAmount, formatDate, formatUsd, proofPath } from '../lib/api'
+import { ApiLock, GenesisProjectMetadata, api, formatAmount, formatDate, formatUsd, proofPath } from '../lib/api'
 import { getChainById } from '../lib/chains'
 import { parseMetadataURI } from '../lib/metadata'
 import { RiskScorecard, RiskCheck } from '../components/RiskScorecard'
@@ -19,6 +19,16 @@ function fmt(n: number) {
 }
 
 function pctClass(p: number) { return p >= 75 ? 'high' : p >= 50 ? 'medium' : 'low' }
+
+function lockKindLabel(lock: ApiLock) {
+  if (lock.assetType === 'v3_position') return 'Liquidity Position'
+  return lock.assetType === 'lp' ? 'LP Lock' : 'Token'
+}
+
+function lockAmountLabel(lock: ApiLock) {
+  if (lock.assetType === 'v3_position') return '1 locked position'
+  return formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)
+}
 
 function CopyBtn({ value }: { value: string }) {
   const [ok, setOk] = useState(false)
@@ -57,6 +67,7 @@ export function ProjectDetail() {
   const [allLocks, setAllLocks] = useState<ApiLock[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [projectMeta, setProjectMeta] = useState<GenesisProjectMetadata | null>(null)
 
   useEffect(() => {
     api.locks(200)
@@ -70,6 +81,11 @@ export function ProjectDetail() {
     [allLocks, address]
   )
 
+  useEffect(() => {
+    if (!address) return
+    api.genesisProject(address).then(setProjectMeta).catch(() => setProjectMeta(null))
+  }, [address])
+
   const metadata = useMemo(() => {
     for (const lock of locks) {
       const parsed = parseMetadataURI(lock.metadataURI)
@@ -77,6 +93,7 @@ export function ProjectDetail() {
     }
     return null
   }, [locks])
+  const mergedMeta = useMemo(() => ({ ...(projectMeta || {}), ...(metadata || {}) }), [metadata, projectMeta])
 
   if (loading) {
     return <div style={{ padding: 48, textAlign: 'center', color: 'var(--dim)' }}>Loading…</div>
@@ -103,10 +120,11 @@ export function ProjectDetail() {
   const chainCfg = getChainById(first.chainId)
   const explorer = (chainCfg?.explorerUrl ?? 'https://etherscan.io') + '/address/'
   const geckoChain = chainCfg?.geckoTerminalId
-  const geckoUrl = geckoChain ? `https://www.geckoterminal.com/${geckoChain}/pools/${first.assetAddress}?embed=1&info=0&swaps=0&theme=dark` : null
+  const chartAddress = first.poolAddress || first.assetAddress
+  const geckoUrl = geckoChain ? `https://www.geckoterminal.com/${geckoChain}/pools/${chartAddress}?embed=1&info=0&swaps=0&theme=dark` : null
 
-  const symbol = metadata?.symbol || first.token?.symbol || `${first.assetAddress.slice(0, 6)}…${first.assetAddress.slice(-4)}`
-  const name = metadata?.name || first.token?.name || symbol
+  const symbol = mergedMeta.symbol || first.token?.symbol || `${first.assetAddress.slice(0, 6)}...${first.assetAddress.slice(-4)}`
+  const name = mergedMeta.name || first.token?.name || symbol
   const totalTvl = locks.reduce((s, l) => s + Number(l.tvlUsd || 0), 0)
   const totalLockedPct = Math.min(100, locks.reduce((s, l) => s + Number(l.lockedPercentage || 0), 0))
   const isPermanent = locks.some(l => l.isPermanent)
@@ -124,9 +142,9 @@ export function ProjectDetail() {
       </button>
 
       {/* Banner */}
-      {metadata?.banner ? (
+      {mergedMeta?.banner ? (
         <div style={{ height: 160, borderRadius: 12, overflow: 'hidden', marginBottom: 20, border: '1px solid var(--border)' }}>
-          <img src={metadata.banner} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+          <img src={mergedMeta.banner} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
         </div>
       ) : (
         <div style={{ height: 120, borderRadius: 12, marginBottom: 20, background: 'linear-gradient(135deg, #10110f 0%, #141a10 55%, #10110f 100%)', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
@@ -141,7 +159,7 @@ export function ProjectDetail() {
       >
         {/* Logo */}
         <div style={{ width: 72, height: 72, borderRadius: '50%', flexShrink: 0, border: '3px solid rgba(213, 253, 81,0.3)', background: '#141a10', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: '#e5feaa', overflow: 'hidden' }}>
-          {metadata?.logo ? <img src={metadata.logo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : symbol.slice(0, 2)}
+          {mergedMeta?.logo ? <img src={mergedMeta.logo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : symbol.slice(0, 2)}
         </div>
 
         {/* Name + socials */}
@@ -150,29 +168,29 @@ export function ProjectDetail() {
             <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{name}</h1>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--dim)', background: 'rgba(255,255,255,0.05)', padding: '2px 7px', borderRadius: 4, border: '1px solid var(--border)' }}>{symbol}</span>
             <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>{chainCfg?.name || first.chainId}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>{first.assetType === 'lp' ? 'LP Pair' : 'Token'}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>{lockKindLabel(first)}</span>
           </div>
-          {metadata?.description && (
-            <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 12px', lineHeight: 1.6, maxWidth: 620 }}>{metadata.description}</p>
+          {mergedMeta?.description && (
+            <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 12px', lineHeight: 1.6, maxWidth: 620 }}>{mergedMeta.description}</p>
           )}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {metadata?.website && (
-              <a href={metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--dim)', textDecoration: 'none', padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
-                <Globe size={11} /> {metadata.website.replace(/^https?:\/\//, '')}
+            {mergedMeta?.website && (
+              <a href={mergedMeta.website.startsWith('http') ? mergedMeta.website : `https://${mergedMeta.website}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--dim)', textDecoration: 'none', padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+                <Globe size={11} /> {mergedMeta.website.replace(/^https?:\/\//, '')}
               </a>
             )}
-            {metadata?.twitter && (
-              <a href={metadata.twitter.startsWith('http') ? metadata.twitter : `https://x.com/${metadata.twitter.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--dim)', textDecoration: 'none', padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+            {mergedMeta?.twitter && (
+              <a href={mergedMeta.twitter.startsWith('http') ? mergedMeta.twitter : `https://x.com/${mergedMeta.twitter.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--dim)', textDecoration: 'none', padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
                 <Twitter size={11} /> X
               </a>
             )}
-            {metadata?.telegram && (
-              <a href={metadata.telegram.startsWith('http') ? metadata.telegram : `https://${metadata.telegram}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--dim)', textDecoration: 'none', padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+            {mergedMeta?.telegram && (
+              <a href={mergedMeta.telegram.startsWith('http') ? mergedMeta.telegram : `https://${mergedMeta.telegram}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--dim)', textDecoration: 'none', padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
                 <MessageCircle size={11} /> Telegram
               </a>
             )}
-            {metadata?.discord && (
-              <a href={metadata.discord.startsWith('http') ? metadata.discord : `https://${metadata.discord}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--dim)', textDecoration: 'none', padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+            {mergedMeta?.discord && (
+              <a href={mergedMeta.discord.startsWith('http') ? mergedMeta.discord : `https://${mergedMeta.discord}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--dim)', textDecoration: 'none', padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
                 <Hash size={11} /> Discord
               </a>
             )}
@@ -184,9 +202,15 @@ export function ProjectDetail() {
 
         {/* Lock % badge */}
         <div style={{ textAlign: 'center', padding: '14px 20px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid var(--border)', flexShrink: 0 }}>
-          <div style={{ fontSize: 10, color: 'var(--dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Locked</div>
-          <div style={{ fontSize: 40, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>{totalLockedPct.toFixed(0)}</div>
-          <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 2 }}>% of supply</div>
+          <div style={{ fontSize: 10, color: 'var(--dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            {first.assetType === 'v3_position' ? 'Locked positions' : 'Locked'}
+          </div>
+          <div style={{ fontSize: 40, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>
+            {first.assetType === 'v3_position' ? locks.filter(l => l.assetType === 'v3_position').length : totalLockedPct.toFixed(0)}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 2 }}>
+            {first.assetType === 'v3_position' ? 'permanent' : '% of supply'}
+          </div>
           <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }}>
             {isPermanent && <span style={{ fontSize: 9, padding: '2px 5px', borderRadius: 3, background: 'rgba(34,197,94,0.12)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)' }}>Permanent</span>}
           </div>
@@ -201,7 +225,7 @@ export function ProjectDetail() {
         {[
           { label: 'TVL Locked', value: fmt(totalTvl) },
           { label: 'Active Locks', value: String(locks.length) },
-          { label: 'Locked Supply', value: `${totalLockedPct.toFixed(0)}%` },
+          { label: first.assetType === 'v3_position' ? 'Position Locks' : 'Locked Supply', value: first.assetType === 'v3_position' ? String(locks.filter(l => l.assetType === 'v3_position').length) : `${totalLockedPct.toFixed(0)}%` },
         ].map(m => (
           <div key={m.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 9, padding: '12px 14px' }}>
             <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 4 }}>{m.label}</div>
@@ -226,7 +250,7 @@ export function ProjectDetail() {
                 <BarChart2 size={13} color="var(--accent)" />
                 <span style={{ fontWeight: 600, fontSize: 13 }}>Price Chart</span>
                 <span style={{ fontSize: 11, color: 'var(--dim)' }}>powered by GeckoTerminal</span>
-                <a href={`https://www.geckoterminal.com/${geckoChain}/pools/${first.assetAddress}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+                <a href={`https://www.geckoterminal.com/${geckoChain}/pools/${chartAddress}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
                   Full chart <ExternalLink size={10} />
                 </a>
               </div>
@@ -264,10 +288,10 @@ export function ProjectDetail() {
                     return (
                       <tr key={`${lock.chainId}-${lock.lockId}`} onClick={() => navigate(proofPath(lock))} style={{ cursor: 'pointer' }}>
                         <td>
-                          <span className={`type-badge ${lock.assetType}`}>{lock.assetType === 'lp' ? 'LP Lock' : 'Token'}</span>
+                          <span className={`type-badge ${lock.assetType}`}>{lockKindLabel(lock)}</span>
                         </td>
                         <td>
-                          <div className="amt-main">{formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)}</div>
+                          <div className="amt-main">{lockAmountLabel(lock)}</div>
                         </td>
                         <td>
                           <div className="amt-main">{formatUsd(lock.tvlUsd)}</div>
@@ -277,7 +301,7 @@ export function ProjectDetail() {
                             <div className="pct-bar">
                               <div className={`pct-fill ${pctClass(pct)}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                             </div>
-                            <span className="pct-val">{pct.toFixed(0)}%</span>
+                            <span className="pct-val">{lock.assetType === 'v3_position' ? 'Position' : `${pct.toFixed(0)}%`}</span>
                           </div>
                         </td>
                         <td>

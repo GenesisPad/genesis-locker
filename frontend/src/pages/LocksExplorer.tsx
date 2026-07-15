@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Clock, FileClock, Infinity, Layers, Lock, Search } from 'lucide-react'
-import { api, formatAmount, formatDate, formatUsd, lockAssetLabel, lockTypeLabel, proofPath, type ApiLock } from '../lib/api'
+import { api, formatAmount, formatDate, formatUsd, lockAssetLabel, lockProjectName, lockProjectTicker, lockTypeLabel, proofPath, type ApiLock } from '../lib/api'
 import { getChainById } from '../lib/chains'
 
 export type LockExplorerFilterKey = 'all' | 'tokens' | 'v2' | 'v3' | 'vesting' | 'timed' | 'permanent' | 'soon'
@@ -28,9 +28,22 @@ function filterArgs(filter: LockExplorerFilterKey) {
   return undefined
 }
 
-function amountLabel(lock: ApiLock) {
+function positionLabel(lock: ApiLock) {
   if (lock.assetType === 'v3_position') return `Position #${lock.positionTokenId || lock.lockId}`
   return formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)
+}
+
+function primaryTitle(lock: ApiLock) {
+  if (lock.assetType === 'v3_position') return lockProjectName(lock)
+  return lockAssetLabel(lock)
+}
+
+function primaryMeta(lock: ApiLock) {
+  const chainName = getChainById(lock.chainId)?.name ?? `Chain ${lock.chainId}`
+  if (lock.assetType === 'v3_position') {
+    return `${lockProjectTicker(lock)} · ${chainName} · Permanent liquidity position`
+  }
+  return `${chainName} · ${lockTypeLabel(lock)} · ${lock.isPermanent ? 'Permanent' : lock.lockType === 'vesting' ? 'Vesting' : 'Timed'}`
 }
 
 export function LocksExplorer({
@@ -106,14 +119,15 @@ export function LocksExplorer({
               {lock.assetType === 'v3_position' ? <Layers size={17} /> : lock.isPermanent ? <Infinity size={17} /> : lock.lockType === 'vesting' ? <FileClock size={17} /> : <Lock size={17} />}
             </div>
             <div className="lock-result-main">
-              <div className="lock-result-title">{lockAssetLabel(lock)}</div>
-              <div className="lock-result-meta">
+              <div className="lock-result-title">{primaryTitle(lock)}</div>
+              <div className="lock-result-meta">{primaryMeta(lock)}</div>
+              <div className="lock-result-meta" style={{ display: 'none' }}>
                 {getChainById(lock.chainId)?.name ?? `Chain ${lock.chainId}`} · {lockTypeLabel(lock)} · {lock.isPermanent ? 'Permanent' : lock.lockType === 'vesting' ? 'Vesting' : 'Timed'}
               </div>
             </div>
             <div className="lock-result-stat">
-              <span>{amountLabel(lock)}</span>
-              <small>{lock.assetType === 'v3_position' ? 'Fees are separate from locked liquidity' : lock.unlockDate ? `Unlocks ${formatDate(lock.unlockDate)}` : 'No unlock'}</small>
+              <span>{positionLabel(lock)}</span>
+              <small>{lock.assetType === 'v3_position' ? 'Position number' : lock.unlockDate ? `Unlocks ${formatDate(lock.unlockDate)}` : 'No unlock'}</small>
             </div>
             <div className="lock-result-stat">
               <span>{lock.tvlUsd ? formatUsd(lock.tvlUsd) : 'Unavailable'}</span>

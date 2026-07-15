@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { CheckCircle2, CheckCircle, Shield, Copy, ExternalLink, Infinity, Clock, ChevronLeft, Globe, Twitter, MessageCircle, Hash } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { RiskBadge } from '../components/RiskBadge'
-import { ApiLock, api, formatAmount, formatDate, formatUsd, lockAssetLabel, lockTypeLabel, proofPath, shortAddress } from '../lib/api'
+import { ApiLock, GenesisProjectMetadata, api, formatAmount, formatDate, formatUsd, lockAssetLabel, lockProjectName, lockProjectTicker, lockTypeLabel, proofPath, shortAddress } from '../lib/api'
+import { getChainById } from '../lib/chains'
 import { parseMetadataURI } from '../lib/metadata'
 import { manageLockTransaction } from '../lib/wallet'
 
@@ -35,7 +36,7 @@ function pctProgress(lock: ApiLock) {
 }
 
 function displayAmount(lock: ApiLock) {
-  if (lock.assetType === 'v3_position') return lock.initialLiquidity || lock.amount
+  if (lock.assetType === 'v3_position') return '1 locked position'
   return formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)
 }
 
@@ -48,6 +49,7 @@ export function LockDetail() {
   const [error, setError] = useState('')
   const [actionStatus, setActionStatus] = useState('')
   const [pendingAction, setPendingAction] = useState<string | null>(null)
+  const [projectMeta, setProjectMeta] = useState<GenesisProjectMetadata | null>(null)
   const [extendDate, setExtendDate] = useState('')
   const [addAmount, setAddAmount] = useState('')
   const [newOwner, setNewOwner] = useState('')
@@ -64,8 +66,17 @@ export function LockDetail() {
       .finally(() => setLoading(false))
   }, [chainId, contractAddress, id])
 
+  useEffect(() => {
+    if (!lock?.assetAddress) return
+    api.genesisProject(lock.assetAddress).then(setProjectMeta).catch(() => setProjectMeta(null))
+  }, [lock?.assetAddress])
+
   const progress = useMemo(() => lock ? pctProgress(lock) : 0, [lock])
   const metadata = useMemo(() => lock ? parseMetadataURI(lock.metadataURI) : null, [lock])
+  const mergedMeta = useMemo(() => ({ ...(projectMeta || {}), ...(metadata || {}) }), [metadata, projectMeta])
+  const chainName = lock ? getChainById(lock.chainId)?.name || `Chain ${lock.chainId}` : ''
+  const projectName = lock ? (mergedMeta.name || lockProjectName(lock)) : ''
+  const projectTicker = lock ? (mergedMeta.symbol || lockProjectTicker(lock)) : ''
 
   async function runAction(action: 'withdraw' | 'permanentLock' | 'extendLock' | 'increaseLockAmount' | 'transferLockOwnership') {
     if (!lock) return
@@ -121,50 +132,66 @@ export function LockDetail() {
       <motion.div className={`verified-banner ${lock.assetType === 'lp' || lock.assetType === 'v3_position' ? 'lp-verified' : 'token-verified'}`} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <CheckCircle2 size={22} />
         <div>
-          <div>{lockTypeLabel(lock)} Verified</div>
-          <div style={{ fontSize: 12.5, fontWeight: 700, opacity: 0.85, marginTop: 2 }}>
-            {lock.assetType === 'v3_position' ? `Liquidity ${displayAmount(lock)}` : `${displayAmount(lock)} ${lock.token?.symbol || shortAddress(lock.assetAddress)}`} · {lock.isPermanent ? 'Permanent' : `Unlocks ${formatDate(lock.unlockDate)}`}
+          <div>{lock.assetType === 'v3_position' ? `${projectName} (${projectTicker}) Locked` : `${lockTypeLabel(lock)} Verified`}</div>
+          {lock.assetType === 'v3_position' && (
+            <div style={{ fontSize: 12.5, fontWeight: 700, opacity: 0.85, marginTop: 2 }}>
+              Position #{lock.positionTokenId || lock.lockId} · {chainName} · Permanent
+            </div>
+          )}
+          <div style={{ display: lock.assetType === 'v3_position' ? 'none' : undefined, fontSize: 12.5, fontWeight: 700, opacity: 0.85, marginTop: 2 }}>
+            {lock.assetType === 'v3_position' ? '1 permanently locked LP position' : `${displayAmount(lock)} ${lock.token?.symbol || shortAddress(lock.assetAddress)}`} · {lock.isPermanent ? 'Permanent' : `Unlocks ${formatDate(lock.unlockDate)}`}
           </div>
         </div>
-        <span style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 800, opacity: 0.95, flexShrink: 0 }}>Lock #{lock.lockId}</span>
+        {lock.createdTxUrl && (
+          <a
+            href={lock.createdTxUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary"
+            style={{ marginLeft: 'auto', fontSize: 12, padding: '8px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none', flexShrink: 0 }}
+          >
+            View proof on block explorer <ExternalLink size={12} />
+          </a>
+        )}
+        <span style={{ marginLeft: lock.createdTxUrl ? 0 : 'auto', fontSize: 16, fontWeight: 800, opacity: 0.95, flexShrink: 0 }}>Lock #{lock.lockId}</span>
       </motion.div>
 
-      {metadata && (metadata.logo || metadata.banner || metadata.description || metadata.website || metadata.twitter || metadata.telegram || metadata.discord) && (
+      {(mergedMeta.logo || mergedMeta.banner || mergedMeta.description || mergedMeta.website || mergedMeta.twitter || mergedMeta.telegram || mergedMeta.discord) && (
         <motion.div
           initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.03 }}
           className="detail-card"
           style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}
         >
-          {metadata.logo && (
+          {mergedMeta.logo && (
             <div style={{ width: 56, height: 56, borderRadius: '50%', flexShrink: 0, border: '2px solid rgba(217, 173, 74,0.3)', overflow: 'hidden', background: '#242018' }}>
-              <img src={metadata.logo} alt={metadata.name || lock.token?.symbol || 'Project logo'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={mergedMeta.logo} alt={mergedMeta.name || lock.token?.symbol || 'Project logo'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           )}
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: metadata.description ? 6 : 0 }}>
-              {metadata.name || lock.token?.symbol}
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: mergedMeta.description ? 6 : 0 }}>
+              {mergedMeta.name || lock.token?.symbol}
             </div>
-            {metadata.description && (
-              <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 10px', maxWidth: 640 }}>{metadata.description}</p>
+            {mergedMeta.description && (
+              <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 10px', maxWidth: 640 }}>{mergedMeta.description}</p>
             )}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {metadata.website && (
-                <a href={metadata.website.startsWith('http') ? metadata.website : `https://${metadata.website}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
-                  <Globe size={10} /> {metadata.website.replace(/^https?:\/\//, '')}
+              {mergedMeta.website && (
+                <a href={mergedMeta.website.startsWith('http') ? mergedMeta.website : `https://${mergedMeta.website}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
+                  <Globe size={10} /> {mergedMeta.website.replace(/^https?:\/\//, '')}
                 </a>
               )}
-              {metadata.twitter && (
-                <a href={metadata.twitter.startsWith('http') ? metadata.twitter : `https://x.com/${metadata.twitter.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
+              {mergedMeta.twitter && (
+                <a href={mergedMeta.twitter.startsWith('http') ? mergedMeta.twitter : `https://x.com/${mergedMeta.twitter.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
                   <Twitter size={10} /> X
                 </a>
               )}
-              {metadata.telegram && (
-                <a href={metadata.telegram.startsWith('http') ? metadata.telegram : `https://${metadata.telegram}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
+              {mergedMeta.telegram && (
+                <a href={mergedMeta.telegram.startsWith('http') ? mergedMeta.telegram : `https://${mergedMeta.telegram}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
                   <MessageCircle size={10} /> Telegram
                 </a>
               )}
-              {metadata.discord && (
-                <a href={metadata.discord.startsWith('http') ? metadata.discord : `https://${metadata.discord}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
+              {mergedMeta.discord && (
+                <a href={mergedMeta.discord.startsWith('http') ? mergedMeta.discord : `https://${mergedMeta.discord}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--dim)', textDecoration: 'none', padding: '3px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
                   <Hash size={10} /> Discord
                 </a>
               )}
@@ -177,7 +204,7 @@ export function LockDetail() {
         <div className="lock-detail-grid">
           <div className="detail-card">
             <div className="detail-card-label">Asset Information</div>
-            <div className="detail-field"><span className="detail-field-label">Asset</span><span className="detail-field-val">{lockAssetLabel(lock)}</span></div>
+            <div className="detail-field"><span className="detail-field-label">{lock.assetType === 'v3_position' ? 'Project' : 'Asset'}</span><span className="detail-field-val">{lock.assetType === 'v3_position' ? `${projectName} (${projectTicker})` : lockAssetLabel(lock)}</span></div>
             <div className="detail-field"><span className="detail-field-label">{lock.assetType === 'v3_position' ? 'Launch Token' : 'Asset Address'}</span><span className="detail-field-val addr">{shortAddress(lock.assetAddress)} <CopyBtn value={lock.assetAddress} /></span></div>
             {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">Trading Pool</span><span className="detail-field-val addr">{shortAddress(lock.poolAddress)} {lock.poolAddress && <CopyBtn value={lock.poolAddress} />}</span></div>}
             {lock.assetType === 'v3_position' && <div className="detail-field"><span className="detail-field-label">Position Vault</span><span className="detail-field-val addr">{shortAddress(lock.positionManager)} {lock.positionManager && <CopyBtn value={lock.positionManager} />}</span></div>}
@@ -194,10 +221,11 @@ export function LockDetail() {
                 </button>
               </span>
             </div>
-            <div className="detail-field"><span className="detail-field-label">Chain</span><span className="detail-field-val">{lock.chainId}</span></div>
+            <div className="detail-field"><span className="detail-field-label">Chain</span><span className="detail-field-val">{chainName}</span></div>
             <div className="detail-field"><span className="detail-field-label">Lock Type</span><span className="detail-field-val">{lock.lockType}</span></div>
-            <div className="detail-field"><span className="detail-field-label">{lock.assetType === 'v3_position' ? 'Initial Liquidity' : 'Amount Locked'}</span><span className="detail-field-val">{displayAmount(lock)}</span></div>
+            <div className="detail-field"><span className="detail-field-label">{lock.assetType === 'v3_position' ? 'Locked Position' : 'Amount Locked'}</span><span className="detail-field-val">{displayAmount(lock)}</span></div>
             <div className="detail-field"><span className="detail-field-label">USD Value</span><span className="detail-field-val" style={{ color: 'var(--success)' }}>{formatUsd(lock.tvlUsd)}</span></div>
+            {lock.createdTxUrl && <div className="detail-field"><span className="detail-field-label">Verify Lock</span><span className="detail-field-val"><a href={lock.createdTxUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 5, textDecoration: 'none' }}>Open block explorer <ExternalLink size={11} /></a></span></div>}
           </div>
 
           <div className="detail-card">
@@ -216,8 +244,8 @@ export function LockDetail() {
           <div className="detail-card detail-card-full">
             <div className="detail-card-label">Addresses</div>
             <div className="detail-address-grid">
-              <div className="detail-field"><span className="detail-field-label">Owner</span><span className="detail-field-val addr">{shortAddress(lock.owner)} <CopyBtn value={lock.owner} /></span></div>
-              <div className="detail-field"><span className="detail-field-label">Beneficiary</span><span className="detail-field-val addr">{shortAddress(lock.beneficiary)} <CopyBtn value={lock.beneficiary} /></span></div>
+              <div className="detail-field"><span className="detail-field-label">{lock.assetType === 'v3_position' ? 'Token Creator' : 'Owner'}</span><span className="detail-field-val addr">{shortAddress(lock.owner)} <CopyBtn value={lock.owner} /></span></div>
+              {lock.assetType !== 'v3_position' && <div className="detail-field"><span className="detail-field-label">Beneficiary</span><span className="detail-field-val addr">{shortAddress(lock.beneficiary)} <CopyBtn value={lock.beneficiary} /></span></div>}
               <div className="detail-field"><span className="detail-field-label">Transaction</span><span className="detail-field-val addr">{shortAddress(lock.createdTxHash)} {lock.createdTxHash && <CopyBtn value={lock.createdTxHash} />} {lock.createdTxUrl && <a href={lock.createdTxUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--dim)' }}><ExternalLink size={11} /></a>}</span></div>
               <div className="detail-field"><span className="detail-field-label">Permanent Lock</span><span className="detail-field-val">{lock.isPermanent ? <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4 }}><Infinity size={13} /> Yes, Withdrawal Renounced</span> : 'No'}</span></div>
             </div>
