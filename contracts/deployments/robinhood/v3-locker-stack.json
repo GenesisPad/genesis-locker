@@ -2,11 +2,11 @@
   "network": "robinhood",
   "chainId": "4663",
   "deployer": "0xcB67330a24624d5Add4ec95Da522e2adE58310eb",
-  "genesisV3PositionLocker": "0xC02d4b889281A40f0598c4bfB07B5bCccccC05C8",
-  "genesisFeeDistributionRegistry": "0xf3911a90358738b9ae9452a545C62117696cc427",
-  "genesisLockerRegistry": "0x579496E9375d5220139b06FC14311E441e6b43D2",
+  "genesisV3PositionLocker": "0x1B65A632200143Dd60a57B3f3639082555125F37",
+  "genesisFeeDistributionRegistry": "0x627452b0de8F0A982d24E3618E58Abf4CBb518Ca",
+  "genesisLockerRegistry": "0x3B9dd86E445C1B81CEdCac1a2E6Cf23Fb907049A",
   "finalOwner": "0x8CFa84924011b19765136Baea669AC81FE8bB561",
-  "ownershipTransferred": false,
-  "ownershipTransferNote": "Locker and locker registry ownership remain with deployer until contracts/script/deployDirectV3Stack.js wires the launch factory and transfers ownership.",
-  "deployedAt": "2026-07-14T03:11:04.307Z"
+  "ownershipTransferred": true,
+  "ownershipTransferNote": "Ownership was transferred during contracts/script/deployDirectV3Stack.js after the new launch factory was wired.",
+  "deployedAt": "2026-07-15T03:18:25.696Z"
 }
