@@ -910,6 +910,115 @@ img, video, canvas, svg { max-width: 100%; }
   gap: 10px;
 }
 
+.launch-positions-panel {
+  padding: 20px 24px 24px;
+  background:
+    radial-gradient(circle at 4% 0%, rgba(213, 253, 81, 0.08), transparent 32%),
+    var(--bg-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.section-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.launch-position-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.launch-position-card {
+  min-width: 0;
+  min-height: 86px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-areas:
+    "avatar main"
+    "avatar value";
+  gap: 8px 11px;
+  align-items: center;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--card);
+  text-align: left;
+  transition: background 150ms ease-out, border-color 150ms ease-out, transform 150ms ease-out;
+}
+
+.launch-position-card:hover {
+  border-color: rgba(213, 253, 81, 0.28);
+  background: rgba(213, 253, 81, 0.035);
+  transform: translateY(-1px);
+}
+
+.launch-position-avatar {
+  grid-area: avatar;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: rgba(213, 253, 81, 0.09);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  object-fit: cover;
+}
+
+.launch-position-main {
+  grid-area: main;
+  min-width: 0;
+}
+
+.launch-position-title {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.launch-position-meta {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.launch-position-value {
+  grid-area: value;
+  min-width: 0;
+}
+
+.launch-position-value span {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.launch-position-value small {
+  color: var(--success);
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 /* ============================================================
    LOCKS GRID (TABLE + TRENDING)
    ============================================================ */
@@ -2552,6 +2661,7 @@ img, video, canvas, svg { max-width: 100%; }
 @media (max-width: 1280px) {
   .stats-bar { grid-template-columns: repeat(3, 1fr); }
   .asset-metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .launch-position-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 1100px) {
@@ -2611,6 +2721,9 @@ img, video, canvas, svg { max-width: 100%; }
   .home-unlocks-grid {
     grid-template-columns: 1fr;
   }
+  .launch-positions-panel {
+    padding: 16px;
+  }
   .asset-detail-header {
     flex-wrap: wrap;
   }
@@ -2668,6 +2781,7 @@ img, video, canvas, svg { max-width: 100%; }
   }
   .locks-main { padding: 14px 12px; }
   .create-page, .analytics-page, .explorer-page, .search-page, .chains-page, .api-page, .lock-detail-page, .dashboard-page, .community-page, .inner-page { padding: 16px; }
+  .launch-position-grid { grid-template-columns: 1fr; }
   .stats-bar { grid-template-columns: 1fr 1fr; }
   .stat-card {
     padding: 14px 12px;

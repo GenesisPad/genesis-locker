@@ -83,7 +83,7 @@ const TABS = [
     key: 'assets',
     label: 'Locked Assets',
     icon: Coins,
-    desc: 'Every token and LP pair with at least one lock on Genesis Locker, ranked by total value locked — derived live from on-chain lock data.',
+    desc: 'Every token and LP pair with at least one lock on Genesis Locker, ranked by total value locked from live on-chain lock data.',
   },
   {
     key: 'locks',
@@ -340,7 +340,7 @@ export function Projects() {
                             {a.hasHighTaxRisk && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(225,183,92,0.1)', color: 'var(--warning)', border: '1px solid rgba(225,183,92,0.2)', whiteSpace: 'nowrap' }}>High Tax</span>}
                             {a.hasBlacklistRisk && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)', whiteSpace: 'nowrap' }}>Blacklist</span>}
                             {!a.isPermanent && !a.hasMintRisk && !a.hasHighTaxRisk && !a.hasBlacklistRisk && (
-                              <span style={{ fontSize: 10, color: 'var(--dim)' }}>—</span>
+                              <span style={{ fontSize: 10, color: 'var(--dim)' }}>-</span>
                             )}
                           </div>
                         </td>
@@ -353,7 +353,7 @@ export function Projects() {
             </div>
             {(loading || visible.length === 0) && (
               <div style={{ padding: '40px 32px', textAlign: 'center', color: 'var(--dim)' }}>
-                {loading ? 'Loading assets…' : 'No locked assets yet — be the first to lock on Genesis Locker.'}
+                {loading ? 'Loading assets...' : 'No locked assets yet. Be the first to lock on Genesis Locker.'}
               </div>
             )}
           </div>
@@ -417,7 +417,7 @@ export function Projects() {
                         </td>
                         <td><span style={{ fontSize: 11, fontWeight: 700, padding: '3px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>{getChainById(lock.chainId)?.name || lock.chainId}</span></td>
                         <td>
-                          <div className="amt-main">{lock.assetType === 'v3_position' ? (lock.initialLiquidity || lock.remainingLockedAmount) : formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)}</div>
+                          <div className="amt-main">{lock.assetType === 'v3_position' ? '1 locked position' : formatAmount(lock.remainingLockedAmount, lock.token?.decimals ?? 18)}</div>
                           <div className="amt-usd">{formatUsd(lock.tvlUsd)}</div>
                         </td>
                         <td>

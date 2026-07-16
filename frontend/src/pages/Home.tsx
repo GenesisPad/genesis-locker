@@ -209,11 +209,13 @@ export function Home() {
   const [query, setQuery] = useState('')
   const [stats, setStats] = useState<GlobalStats | null>(null)
   const [locks, setLocks] = useState<ApiLock[]>([])
+  const [launchPositions, setLaunchPositions] = useState<ApiLock[]>([])
   const [locksLoaded, setLocksLoaded] = useState(false)
 
   useEffect(() => {
     api.stats().then(setStats).catch(() => setStats(null))
     api.locks(50).then(r => setLocks(r.locks)).catch(() => setLocks([])).finally(() => setLocksLoaded(true))
+    api.positions(8).then(r => setLaunchPositions(r.locks)).catch(() => setLaunchPositions([]))
   }, [])
 
   const latestLocks = locks.slice(0, 5)
@@ -225,6 +227,15 @@ export function Home() {
     .filter(l => !l.isPermanent && l.unlockDate && daysUntil(l.unlockDate)! >= 0)
     .sort((a, b) => new Date(a.unlockDate!).getTime() - new Date(b.unlockDate!).getTime())
     .slice(0, 3)
+
+  function lockAmountLabel(lock: ApiLock) {
+    if (lock.assetType === 'v3_position') return '1 locked position'
+    return formatAmount(lock.amount, lock.token?.decimals ?? 18)
+  }
+
+  function lockValueLabel(lock: ApiLock) {
+    return lock.tvlUsd ? formatUsd(lock.tvlUsd) : 'Value unavailable'
+  }
 
   return (
     <div>
@@ -349,6 +360,46 @@ export function Home() {
         <span className="min-lock-note">Minimum Lock Duration: 7 days</span>
       </div>
 
+      {/* Launchpad Positions */}
+      <section className="launch-positions-panel">
+        <div className="section-header">
+          <div>
+            <span className="section-kicker">Genesis Launchpad</span>
+            <div className="section-title">Locked Positions</div>
+          </div>
+          <a className="view-all" onClick={() => navigate('/positions')}>
+            View all positions <ChevronRight size={13} />
+          </a>
+        </div>
+
+        {locksLoaded && launchPositions.length === 0 && (
+          <div className="empty-state" style={{ margin: 0 }}>
+            Launch-created positions will appear here after the locker indexer sees the on-chain lock event.
+          </div>
+        )}
+
+        {launchPositions.length > 0 && (
+          <div className="launch-position-grid">
+            {launchPositions.slice(0, 4).map(lock => {
+              const chainName = getChainById(lock.chainId)?.name ?? `Chain ${lock.chainId}`
+              return (
+                <button className="launch-position-card" key={`${lock.chainId}-${lock.contractAddress}-${lock.lockId}`} onClick={() => navigate(proofPath(lock))}>
+                  <AssetAvatar lock={lock} className="launch-position-avatar" />
+                  <div className="launch-position-main">
+                    <div className="launch-position-title">{assetLabel(lock)}</div>
+                    <div className="launch-position-meta">{chainName} - Position #{lock.positionTokenId || lock.lockId}</div>
+                  </div>
+                  <div className="launch-position-value">
+                    <span>{lockValueLabel(lock)}</span>
+                    <small>Permanent</small>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
       {/* Locks Grid */}
       <div className="locks-grid">
         {/* Latest Locks */}
@@ -376,7 +427,7 @@ export function Home() {
               <tbody>
                 {locksLoaded && latestLocks.length === 0 && (
                   <tr><td colSpan={7} style={{ textAlign: 'center', padding: '28px 0', color: 'var(--dim)' }}>
-                    No locks yet — be the first to lock on Genesis Locker.
+                    No locks yet. Be the first to lock on Genesis Locker.
                   </td></tr>
                 )}
                 {latestLocks.map(lock => {
@@ -401,7 +452,7 @@ export function Home() {
                         <div className="mode-label">{lock.isPermanent ? 'Permanent' : lock.lockType === 'vesting' ? 'Vesting' : 'Cliff'}</div>
                       </td>
                       <td>
-                        <div className="amt-main">{formatAmount(lock.amount, lock.token?.decimals ?? 18)}</div>
+                        <div className="amt-main">{lockAmountLabel(lock)}</div>
                         <div className="amt-usd">{lock.tvlUsd ? formatUsd(lock.tvlUsd) : 'Unavailable'}</div>
                       </td>
                       <td>
@@ -513,7 +564,7 @@ export function Home() {
                   <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{assetLabel(lock)}</div>
                   <div style={{ fontSize: 11, color: 'var(--dim)', display: 'flex', gap: 5 }}>
                     <span style={{ fontWeight: 600 }}>{chainName}</span>
-                    · {lock.assetType === 'v3_position' ? 'Position' : lock.assetType === 'lp' ? 'Liquidity' : 'Token'}
+                    {' | '}{lock.assetType === 'v3_position' ? 'Position' : lock.assetType === 'lp' ? 'Liquidity' : 'Token'}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
