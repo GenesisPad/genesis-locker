@@ -213,9 +213,18 @@ export function Home() {
   const [locksLoaded, setLocksLoaded] = useState(false)
 
   useEffect(() => {
-    api.stats().then(setStats).catch(() => setStats(null))
-    api.locks(50).then(r => setLocks(r.locks)).catch(() => setLocks([])).finally(() => setLocksLoaded(true))
-    api.positions(8).then(r => setLaunchPositions(r.locks)).catch(() => setLaunchPositions([]))
+    let active = true
+    const load = () => {
+      api.stats().then(value => active && setStats(value)).catch(() => active && setStats(null))
+      api.locks(50).then(r => active && setLocks(r.locks)).catch(() => active && setLocks([])).finally(() => active && setLocksLoaded(true))
+      api.positions(8).then(r => active && setLaunchPositions(r.locks)).catch(() => active && setLaunchPositions([]))
+    }
+    load()
+    const interval = window.setInterval(load, 15_000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [])
 
   const latestLocks = locks.slice(0, 5)

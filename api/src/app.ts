@@ -9,6 +9,10 @@ export function createApp() {
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
+  app.use("/v1", (_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    next();
+  });
   app.use("/v1/uploads", express.static(uploadsDir));
   app.use("/v1/uploads", uploadsRouter);
   app.use("/v1", router);

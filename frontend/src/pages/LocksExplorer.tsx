@@ -63,12 +63,21 @@ export function LocksExplorer({
   const [error, setError] = useState('')
 
   useEffect(() => {
-    setLoading(true)
-    setError('')
-    api.locks(100, filterArgs(filter))
-      .then(response => setLocks(response.locks))
-      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load locks'))
-      .finally(() => setLoading(false))
+    let active = true
+    const load = (showLoading = false) => {
+      if (showLoading) setLoading(true)
+      setError('')
+      api.locks(100, filterArgs(filter))
+        .then(response => active && setLocks(response.locks))
+        .catch(err => active && setError(err instanceof Error ? err.message : 'Failed to load locks'))
+        .finally(() => active && setLoading(false))
+    }
+    load(true)
+    const interval = window.setInterval(() => load(false), filter === 'v3' ? 10_000 : 20_000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [filter])
 
   const visibleLocks = useMemo(() => {

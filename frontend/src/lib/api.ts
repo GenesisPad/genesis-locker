@@ -158,7 +158,8 @@ export type GenesisProjectMetadata = {
 }
 
 async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`)
+  const separator = path.includes('?') ? '&' : '?'
+  const response = await fetch(`${API_BASE}${path}${separator}_=${Date.now()}`, { cache: 'no-store' })
   if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`)
   return response.json() as Promise<T>
 }

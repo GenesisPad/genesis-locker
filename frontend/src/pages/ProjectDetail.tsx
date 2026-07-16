@@ -70,10 +70,24 @@ export function ProjectDetail() {
   const [projectMeta, setProjectMeta] = useState<GenesisProjectMetadata | null>(null)
 
   useEffect(() => {
-    api.locks(200)
-      .then(r => setAllLocks(r.locks))
-      .catch(e => setLoadError(e instanceof Error ? e.message : 'Failed to load'))
-      .finally(() => setLoading(false))
+    let active = true
+    const load = (showLoading = false) => {
+      if (showLoading) setLoading(true)
+      api.locks(200)
+        .then(r => {
+          if (!active) return
+          setAllLocks(r.locks)
+          setLoadError('')
+        })
+        .catch(e => active && setLoadError(e instanceof Error ? e.message : 'Failed to load'))
+        .finally(() => active && setLoading(false))
+    }
+    load(true)
+    const interval = window.setInterval(() => load(false), 15_000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [])
 
   const locks = useMemo(

@@ -55,15 +55,27 @@ export function LockDetail() {
   const [newOwner, setNewOwner] = useState('')
 
   useEffect(() => {
+    let active = true
     const finalChainId = Number(chainId || 1)
     const finalLockId = id || '1'
-    api.lock(finalChainId, finalLockId, contractAddress)
-      .then(response => {
-        setLock(response.locks[0] || null)
-        setWarnings(response.warnings)
-      })
-      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load lock'))
-      .finally(() => setLoading(false))
+    const load = (showLoading = false) => {
+      if (showLoading) setLoading(true)
+      api.lock(finalChainId, finalLockId, contractAddress)
+        .then(response => {
+          if (!active) return
+          setLock(response.locks[0] || null)
+          setWarnings(response.warnings)
+          setError('')
+        })
+        .catch(err => active && setError(err instanceof Error ? err.message : 'Failed to load lock'))
+        .finally(() => active && setLoading(false))
+    }
+    load(true)
+    const interval = window.setInterval(() => load(false), 10_000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [chainId, contractAddress, id])
 
   useEffect(() => {
