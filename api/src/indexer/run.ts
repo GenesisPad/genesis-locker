@@ -1,5 +1,5 @@
 import { Interface, JsonRpcProvider } from "ethers";
-import { chains, indexerBatchSize, indexerConfirmations } from "../config.js";
+import { chains, contractIndexStartBlocks, indexerBatchSize, indexerConfirmations } from "../config.js";
 import { genesisLockerAbi, genesisV3PositionLockerAbi } from "../contracts/genesisLockerAbi.js";
 import { db } from "../db.js";
 import { syncContractMetadata } from "../services/metadata.js";
@@ -31,7 +31,8 @@ async function indexContract(
     where: { chainId_contractAddress: { chainId: chain.id, contractAddress } }
   });
 
-  let fromBlock = Number(cursor?.lastBlock ?? 0n) + 1;
+  const configuredStartBlock = contractIndexStartBlocks[`${chain.id}:${contractAddress}`] ?? 0;
+  let fromBlock = cursor ? Number(cursor.lastBlock) + 1 : configuredStartBlock;
   if (fromBlock > safeLatest) return;
 
   while (fromBlock <= safeLatest) {
@@ -59,8 +60,8 @@ async function indexChain(chain: (typeof chains)[number]) {
   if (chain.lockerAddress) {
     await indexContract(chain, chain.lockerAddress, iface, applyGenesisLockerEvent);
   }
-  if (chain.v3PositionLockerAddress) {
-    await indexContract(chain, chain.v3PositionLockerAddress, v3PositionIface, applyGenesisV3PositionLockerEvent);
+  for (const v3PositionLockerAddress of chain.v3PositionLockerAddresses ?? []) {
+    await indexContract(chain, v3PositionLockerAddress, v3PositionIface, applyGenesisV3PositionLockerEvent);
   }
 }
 

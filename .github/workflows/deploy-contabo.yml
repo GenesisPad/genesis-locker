@@ -39,9 +39,12 @@ jobs:
           # on the next deploy, since the env file is rewritten from scratch
           # every run.
           ROBINHOOD_RPC_URL: ${{ secrets.ROBINHOOD_RPC_URL }}
-          # Genesis launchpad V3 position locker. Keep explicit so launch-created
-          # locked positions stay indexed even if the API default changes.
-          ROBINHOOD_V3_POSITION_LOCKER_ADDRESS: ${{ secrets.ROBINHOOD_V3_POSITION_LOCKER_ADDRESS || '0xC02d4b889281A40f0598c4bfB07B5bCccccC05C8' }}
+          # Genesis launchpad V3 position lockers. Include historical lockers
+          # so launch-created positions from previous corrected deployments
+          # remain indexed and publicly verifiable.
+          ROBINHOOD_V3_POSITION_LOCKER_ADDRESSES: ${{ secrets.ROBINHOOD_V3_POSITION_LOCKER_ADDRESSES || '0xC02d4b889281A40f0598c4bfB07B5bCccccC05C8,0x1B65A632200143Dd60a57B3f3639082555125F37,0x73Db4856b5CE50f9ad5A3C76C5170FE1E19F76F9' }}
+          # Backward-compatible single-address secret. Prefer the plural list.
+          ROBINHOOD_V3_POSITION_LOCKER_ADDRESS: ${{ secrets.ROBINHOOD_V3_POSITION_LOCKER_ADDRESS }}
           # Optional: Uniswap V2-compatible factory address on Robinhood Chain,
           # used to price plain token locks that never had their LP locked
           # here. Has a verified default in config.ts, override only if
@@ -58,7 +61,7 @@ jobs:
           port: ${{ secrets.CONTABO_PORT || '22' }}
           timeout: 30s
           command_timeout: 15m
-          envs: ROBINHOOD_RPC_URL,ROBINHOOD_V3_POSITION_LOCKER_ADDRESS,ROBINHOOD_DEX_FACTORY_ADDRESS,ROBINHOOD_LAUNCHER_ADDRESS
+          envs: ROBINHOOD_RPC_URL,ROBINHOOD_V3_POSITION_LOCKER_ADDRESSES,ROBINHOOD_V3_POSITION_LOCKER_ADDRESS,ROBINHOOD_DEX_FACTORY_ADDRESS,ROBINHOOD_LAUNCHER_ADDRESS
           script: |
             set -e
 
@@ -123,7 +126,8 @@ jobs:
             DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
             ROBINHOOD_RPC_URL=${ROBINHOOD_RPC_URL:-https://rpc.mainnet.chain.robinhood.com}
             ROBINHOOD_LOCKER_ADDRESS=0x0372a1AE860CDc9357ac6bc8e9F97856b37B80Ed
-            ROBINHOOD_V3_POSITION_LOCKER_ADDRESS=${ROBINHOOD_V3_POSITION_LOCKER_ADDRESS:-0xC02d4b889281A40f0598c4bfB07B5bCccccC05C8}
+            ROBINHOOD_V3_POSITION_LOCKER_ADDRESSES=${ROBINHOOD_V3_POSITION_LOCKER_ADDRESSES:-0xC02d4b889281A40f0598c4bfB07B5bCccccC05C8,0x1B65A632200143Dd60a57B3f3639082555125F37,0x73Db4856b5CE50f9ad5A3C76C5170FE1E19F76F9}
+            ROBINHOOD_V3_POSITION_LOCKER_ADDRESS=${ROBINHOOD_V3_POSITION_LOCKER_ADDRESS:-}
             ROBINHOOD_DEX_FACTORY_ADDRESS=${ROBINHOOD_DEX_FACTORY_ADDRESS:-}
             ROBINHOOD_LAUNCHER_ADDRESS=${ROBINHOOD_LAUNCHER_ADDRESS:-}
             INDEXER_BATCH_SIZE=2000

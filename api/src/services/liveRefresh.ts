@@ -1,6 +1,6 @@
 import { AssetType } from "@prisma/client";
 import { Interface, JsonRpcProvider } from "ethers";
-import { chains, indexerBatchSize } from "../config.js";
+import { chains, contractIndexStartBlocks, indexerBatchSize } from "../config.js";
 import { genesisV3PositionLockerAbi } from "../contracts/genesisLockerAbi.js";
 import { db } from "../db.js";
 import { applyGenesisV3PositionLockerEvent } from "../indexer/reducer.js";
@@ -17,40 +17,45 @@ const liveCursorByContract = new Map<string, number>();
 
 async function catchUpV3LockerEvents() {
   for (const chain of chains) {
-    if (!chain.rpcUrl || !chain.v3PositionLockerAddress) continue;
+    if (!chain.rpcUrl || !chain.v3PositionLockerAddresses?.length) continue;
 
-    const contractAddress = chain.v3PositionLockerAddress.toLowerCase();
     const provider = new JsonRpcProvider(chain.rpcUrl);
     const latest = await provider.getBlockNumber();
-    const cursor = await db.indexCursor.findUnique({
-      where: { chainId_contractAddress: { chainId: chain.id, contractAddress } }
-    });
 
-    await syncContractMetadata(chain.id, contractAddress, provider).catch(() => undefined);
+    for (const v3PositionLockerAddress of chain.v3PositionLockerAddresses) {
+      const contractAddress = v3PositionLockerAddress.toLowerCase();
+      const cursor = await db.indexCursor.findUnique({
+        where: { chainId_contractAddress: { chainId: chain.id, contractAddress } }
+      });
 
-    const fallbackStart = BigInt(Math.max(0, latest)) > COLD_START_LOOKBACK_BLOCKS
-      ? BigInt(latest) - COLD_START_LOOKBACK_BLOCKS
-      : 0n;
-    const cursorStart = cursor?.lastBlock !== undefined ? cursor.lastBlock + 1n : fallbackStart;
-    const liveCursorKey = `${chain.id}:${contractAddress}`;
-    const liveCursorStart = BigInt(liveCursorByContract.get(liveCursorKey) ?? 0) + 1n;
-    let fromBlock = Number(cursorStart > liveCursorStart ? cursorStart : liveCursorStart);
-    fromBlock = Math.max(fromBlock, Number(fallbackStart));
-    if (fromBlock > latest) continue;
+      await syncContractMetadata(chain.id, contractAddress, provider).catch(() => undefined);
 
-    while (fromBlock <= latest) {
-      const toBlock = Math.min(fromBlock + indexerBatchSize - 1, latest);
-      const logs = await provider.getLogs({ address: contractAddress, fromBlock, toBlock });
+      const fallbackStart = BigInt(Math.max(0, latest)) > COLD_START_LOOKBACK_BLOCKS
+        ? BigInt(latest) - COLD_START_LOOKBACK_BLOCKS
+        : 0n;
+      const configuredStart = BigInt(contractIndexStartBlocks[`${chain.id}:${contractAddress}`] ?? 0);
+      const coldStart = configuredStart > fallbackStart ? configuredStart : fallbackStart;
+      const cursorStart = cursor?.lastBlock !== undefined ? cursor.lastBlock + 1n : coldStart;
+      const liveCursorKey = `${chain.id}:${contractAddress}`;
+      const liveCursorStart = BigInt(liveCursorByContract.get(liveCursorKey) ?? 0) + 1n;
+      let fromBlock = Number(cursorStart > liveCursorStart ? cursorStart : liveCursorStart);
+      fromBlock = Math.max(fromBlock, Number(coldStart));
+      if (fromBlock > latest) continue;
 
-      for (const log of logs) {
-        const parsed = v3Iface.parseLog(log);
-        if (parsed) {
-          await applyGenesisV3PositionLockerEvent(db, chain.id, contractAddress, log, parsed, provider);
+      while (fromBlock <= latest) {
+        const toBlock = Math.min(fromBlock + indexerBatchSize - 1, latest);
+        const logs = await provider.getLogs({ address: contractAddress, fromBlock, toBlock });
+
+        for (const log of logs) {
+          const parsed = v3Iface.parseLog(log);
+          if (parsed) {
+            await applyGenesisV3PositionLockerEvent(db, chain.id, contractAddress, log, parsed, provider);
+          }
         }
-      }
 
-      liveCursorByContract.set(liveCursorKey, toBlock);
-      fromBlock = toBlock + 1;
+        liveCursorByContract.set(liveCursorKey, toBlock);
+        fromBlock = toBlock + 1;
+      }
     }
   }
 }

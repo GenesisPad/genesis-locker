@@ -1,11 +1,38 @@
 import "dotenv/config";
 
+function uniqueAddresses(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values
+    .flatMap((value) => (value || "").split(","))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => value.toLowerCase())));
+}
+
+const robinhoodV3PositionLockers = uniqueAddresses([
+  process.env.ROBINHOOD_V3_POSITION_LOCKER_ADDRESSES,
+  process.env.ROBINHOOD_V3_POSITION_LOCKER_ADDRESS,
+  // Historical Genesis V3 position lockers. Keep these indexed so tokens from
+  // previous corrected launcher deployments remain publicly verifiable.
+  "0xC02d4b889281A40f0598c4bfB07B5bCccccC05C8",
+  "0x1B65A632200143Dd60a57B3f3639082555125F37",
+  "0x73Db4856b5CE50f9ad5A3C76C5170FE1E19F76F9"
+]);
+
+export const contractIndexStartBlocks: Record<string, number> = {
+  // First known Genesis V3 position lock was indexed at block 9,210,178.
+  // Start slightly earlier so new deployments backfill quickly without
+  // scanning Robinhood Chain from genesis.
+  "4663:0xc02d4b889281a40f0598c4bfb07b5bcccccc05c8": 9_000_000,
+  "4663:0x1b65a632200143dd60a57b3f3639082555125f37": 9_000_000,
+  "4663:0x73db4856b5ce50f9ad5a3c76c5170fe1e19f76f9": 9_000_000
+};
+
 const configuredChains = [
   {
     id: 4663, name: "Robinhood Chain", symbol: "ETH",
     rpcEnvKey: "ROBINHOOD_RPC_URL", rpcUrl: process.env.ROBINHOOD_RPC_URL,
     lockerAddress: process.env.ROBINHOOD_LOCKER_ADDRESS,
-    v3PositionLockerAddress: process.env.ROBINHOOD_V3_POSITION_LOCKER_ADDRESS || "0xC02d4b889281A40f0598c4bfB07B5bCccccC05C8",
+    v3PositionLockerAddresses: robinhoodV3PositionLockers,
     fee: "0.01", explorerUrl: "https://robinhoodchain.blockscout.com",
     dotColor: "#d9ad4a", geckoTerminalId: null, feeLabel: "0.01 ETH",
     // Canonical wrapped-native token address, used to price LP pairs by reserve
@@ -28,7 +55,7 @@ const configuredChains = [
     id: 1, name: "Ethereum", symbol: "ETH",
     rpcEnvKey: "ETHEREUM_RPC_URL", rpcUrl: process.env.ETHEREUM_RPC_URL,
     lockerAddress: process.env.ETHEREUM_LOCKER_ADDRESS,
-    v3PositionLockerAddress: null,
+    v3PositionLockerAddresses: uniqueAddresses([process.env.ETHEREUM_V3_POSITION_LOCKER_ADDRESSES, process.env.ETHEREUM_V3_POSITION_LOCKER_ADDRESS]),
     fee: "0.01", explorerUrl: "https://etherscan.io",
     dotColor: "#627EEA", geckoTerminalId: "eth", feeLabel: "0.01 ETH",
     wrappedNativeAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
@@ -39,7 +66,7 @@ const configuredChains = [
     id: 8453, name: "Base", symbol: "ETH",
     rpcEnvKey: "BASE_RPC_URL", rpcUrl: process.env.BASE_RPC_URL,
     lockerAddress: process.env.BASE_LOCKER_ADDRESS,
-    v3PositionLockerAddress: null,
+    v3PositionLockerAddresses: uniqueAddresses([process.env.BASE_V3_POSITION_LOCKER_ADDRESSES, process.env.BASE_V3_POSITION_LOCKER_ADDRESS]),
     fee: "0.01", explorerUrl: "https://basescan.org",
     dotColor: "#0052FF", geckoTerminalId: "base", feeLabel: "0.01 ETH",
     wrappedNativeAddress: "0x4200000000000000000000000000000000000006",
@@ -50,7 +77,7 @@ const configuredChains = [
     id: 56, name: "BNB Chain", symbol: "BNB",
     rpcEnvKey: "BSC_RPC_URL", rpcUrl: process.env.BSC_RPC_URL,
     lockerAddress: process.env.BSC_LOCKER_ADDRESS,
-    v3PositionLockerAddress: null,
+    v3PositionLockerAddresses: uniqueAddresses([process.env.BSC_V3_POSITION_LOCKER_ADDRESSES, process.env.BSC_V3_POSITION_LOCKER_ADDRESS]),
     fee: "0.03", explorerUrl: "https://bscscan.com",
     dotColor: "#F3BA2F", geckoTerminalId: "bsc", feeLabel: "0.03 BNB",
     wrappedNativeAddress: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
@@ -68,7 +95,7 @@ export const chains = [
     rpcEnvKey: "LOCAL_RPC_URL",
     rpcUrl: process.env.LOCAL_RPC_URL,
     lockerAddress: process.env.LOCAL_LOCKER_ADDRESS,
-    v3PositionLockerAddress: process.env.LOCAL_V3_POSITION_LOCKER_ADDRESS || null,
+    v3PositionLockerAddresses: uniqueAddresses([process.env.LOCAL_V3_POSITION_LOCKER_ADDRESSES, process.env.LOCAL_V3_POSITION_LOCKER_ADDRESS]),
     fee: "0.01",
     explorerUrl: "http://localhost:8545",
     dotColor: "#22c55e",
