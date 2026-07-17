@@ -51,6 +51,68 @@ beforeAll(async () => {
     },
     update: {}
     });
+
+    await db.chain.upsert({
+      where: { id: 4663 },
+      create: { id: 4663, name: "Robinhood Chain", symbol: "ETH", rpcEnvKey: "ROBINHOOD_RPC_URL", explorerUrl: "https://robinhoodchain.blockscout.com" },
+      update: { name: "Robinhood Chain" }
+    });
+
+    await db.lock.upsert({
+      where: {
+        chainId_contractAddress_lockId: {
+          chainId: 4663,
+          contractAddress: "0x2200000000000000000000000000000000000002",
+          lockId: 9901n
+        }
+      },
+      create: {
+        chainId: 4663,
+        lockId: 9901n,
+        contractAddress: "0x2200000000000000000000000000000000000002",
+        assetAddress: "0x3100000000000000000000000000000000000003",
+        assetType: "V3_POSITION",
+        positionManager: "0x4100000000000000000000000000000000000004",
+        positionTokenId: "sidecar-test",
+        launchTokenAddress: "0x3100000000000000000000000000000000000003",
+        pairedAssetAddress: "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        poolAddress: "0x6100000000000000000000000000000000000006",
+        initialLiquidity: "1000",
+        lockType: "PERMANENT",
+        ownerAddress: "0x1000000000000000000000000000000000000001",
+        beneficiaryAddress: "0x1000000000000000000000000000000000000001",
+        amount: "1000",
+        tvlUsd: "500",
+        startTime: new Date(),
+        isPermanent: true
+      },
+      update: {}
+    });
+
+    await db.lock.upsert({
+      where: {
+        chainId_contractAddress_lockId: {
+          chainId: 4663,
+          contractAddress: "0x2200000000000000000000000000000000000002",
+          lockId: 9902n
+        }
+      },
+      create: {
+        chainId: 4663,
+        lockId: 9902n,
+        contractAddress: "0x2200000000000000000000000000000000000002",
+        assetAddress: "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        assetType: "TOKEN",
+        lockType: "PERMANENT",
+        ownerAddress: "0x1000000000000000000000000000000000000001",
+        beneficiaryAddress: "0x1000000000000000000000000000000000000001",
+        amount: "1000",
+        tvlUsd: "500",
+        startTime: new Date(),
+        isPermanent: true
+      },
+      update: {}
+    });
   } catch {
     dbAvailable = false;
     return;
@@ -65,6 +127,7 @@ afterAll(async () => {
   if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   if (dbAvailable) {
     await db.lock.deleteMany({ where: { chainId: 99999 } });
+    await db.lock.deleteMany({ where: { chainId: 4663, contractAddress: "0x2200000000000000000000000000000000000002" } });
     await db.wallet.deleteMany({ where: { address: "0x1000000000000000000000000000000000000001" } });
     await db.chain.deleteMany({ where: { id: 99999 } });
   }
@@ -94,6 +157,15 @@ describe("API routes", () => {
     expect(response.status).toBe(200);
     const body = await response.json() as { locks: Array<{ assetType: string; positionTokenId: string }> };
     expect(body.locks.some((lock) => lock.assetType === "v3_position" && lock.positionTokenId === "123")).toBe(true);
+  });
+
+  it("hides wrapped-native sidecar token locks when a V3 position already accounts for them", async () => {
+    if (!dbAvailable) return;
+    const response = await fetch(`${baseUrl}/v1/locks?limit=20`);
+    expect(response.status).toBe(200);
+    const body = await response.json() as { locks: Array<{ lockId: string; assetType: string; pairedAssetAddress?: string | null }> };
+    expect(body.locks.some((lock) => lock.lockId === "9901" && lock.assetType === "v3_position")).toBe(true);
+    expect(body.locks.some((lock) => lock.lockId === "9902")).toBe(false);
   });
 
   it("serves locked positions through the positions route", async () => {

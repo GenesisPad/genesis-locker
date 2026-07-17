@@ -1,7 +1,6 @@
 import { AssetType, Lock, LockType } from "@prisma/client";
 import { db } from "../db.js";
 import { chains, lowLockPercentageThreshold, shortLockDays } from "../config.js";
-import { refreshLiveV3LockerData, refreshV3PositionValues } from "./liveRefresh.js";
 
 export type LockListFilters = {
   limit?: number;
@@ -40,6 +39,38 @@ function txUrl(explorerUrl: string | null | undefined, txHash: string) {
 
 function remainingAmount(lock: Pick<Lock, "amount" | "withdrawnAmount">) {
   return BigInt(lock.amount) - BigInt(lock.withdrawnAmount);
+}
+
+function wrappedNativeAddress(chainId: number) {
+  return chains.find((chain) => chain.id === chainId)?.wrappedNativeAddress?.toLowerCase() ?? null;
+}
+
+function wrappedNativeLockKey(lock: Pick<Lock, "chainId" | "assetAddress" | "assetType">) {
+  const nativeAddress = wrappedNativeAddress(lock.chainId);
+  if (lock.assetType !== AssetType.TOKEN || !nativeAddress || lock.assetAddress.toLowerCase() !== nativeAddress) return null;
+  return `${lock.chainId}:${nativeAddress}`;
+}
+
+async function filterDisplayLocks<T extends Pick<Lock, "chainId" | "assetAddress" | "assetType">>(locks: T[]): Promise<T[]> {
+  const candidateKeys = [...new Set(locks.map(wrappedNativeLockKey).filter((key): key is string => Boolean(key)))];
+  if (candidateKeys.length === 0) return locks;
+
+  const duplicatePairs = await db.lock.findMany({
+    where: {
+      assetType: AssetType.V3_POSITION,
+      OR: candidateKeys.map((key) => {
+        const [chainId, address] = key.split(":");
+        return { chainId: Number(chainId), pairedAssetAddress: address };
+      })
+    },
+    select: { chainId: true, pairedAssetAddress: true }
+  });
+  const duplicateKeys = new Set(duplicatePairs.map((lock) => `${lock.chainId}:${lock.pairedAssetAddress?.toLowerCase()}`));
+
+  return locks.filter((lock) => {
+    const key = wrappedNativeLockKey(lock);
+    return !key || !duplicateKeys.has(key);
+  });
 }
 
 function claimableAmount(lock: Pick<Lock, "amount" | "withdrawnAmount" | "isPermanent" | "lockType" | "cliffTime" | "endTime" | "startTime" | "vestingInterval">, now = new Date()) {
@@ -186,9 +217,8 @@ export async function getChains() {
 }
 
 export async function getGlobalStats() {
-  await refreshLiveV3LockerData();
-  await refreshV3PositionValues();
-  const [locks, feeStats, uniqueLockers] = await Promise.all([db.lock.findMany(), db.feeStat.findMany(), db.wallet.count()]);
+  const [rawLocks, feeStats, uniqueLockers] = await Promise.all([db.lock.findMany(), db.feeStat.findMany(), db.wallet.count()]);
+  const locks = await filterDisplayLocks(rawLocks);
   const isLiquidityLock = (lock: Lock) => lock.assetType === AssetType.LP || lock.assetType === AssetType.V3_POSITION;
   const chainRows = await getChains();
   const byChain = chainRows.map((chain) => {
@@ -225,7 +255,6 @@ export async function listLockedPositions(limit = 100) {
 }
 
 export async function getAssetStatus(chainId: number, assetAddress?: string, lockId?: bigint, contractAddress?: string) {
-  await refreshLiveV3LockerData();
   const lockWhere = lockId
     ? {
       chainId,
@@ -234,21 +263,11 @@ export async function getAssetStatus(chainId: number, assetAddress?: string, loc
     }
     : { chainId, assetAddress: assetAddress?.toLowerCase() };
 
-  let locks = await db.lock.findMany({
+  const locks = await db.lock.findMany({
       where: lockWhere,
       include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
       orderBy: [{ isPermanent: "desc" }, { endTime: "desc" }]
     }) as LockWithRelations[];
-
-  const v3LockIds = locks.filter((lock) => lock.assetType === AssetType.V3_POSITION).map((lock) => lock.id);
-  if (v3LockIds.length) {
-    await refreshV3PositionValues(v3LockIds);
-    locks = await db.lock.findMany({
-      where: lockWhere,
-      include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
-      orderBy: [{ isPermanent: "desc" }, { endTime: "desc" }]
-    }) as LockWithRelations[];
-  }
 
   const [chain, contract] = await Promise.all([
     db.chain.findUnique({ where: { id: chainId } }),
@@ -283,7 +302,6 @@ export async function getAssetStatus(chainId: number, assetAddress?: string, loc
 }
 
 export async function listLocks(filters: number | LockListFilters = 50) {
-  await refreshLiveV3LockerData();
   const options: LockListFilters = typeof filters === "number" ? { limit: filters } : filters;
   const limit = options.limit ?? 50;
   const now = new Date();
@@ -298,23 +316,12 @@ export async function listLocks(filters: number | LockListFilters = 50) {
     ...(options.unlockingSoon ? { isPermanent: false, endTime: { gte: now, lte: soon } } : {})
   };
   const chainsById = new Map((await db.chain.findMany()).map((chain) => [chain.id, chain]));
-  let locks = await db.lock.findMany({
+  const locks = await filterDisplayLocks(await db.lock.findMany({
     where,
     include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
     orderBy: { createdAt: "desc" },
     take: Math.min(Math.max(limit, 1), 100)
-  }) as LockWithRelations[];
-
-  const v3LockIds = locks.filter((lock) => lock.assetType === AssetType.V3_POSITION).map((lock) => lock.id);
-  if (v3LockIds.length) {
-    await refreshV3PositionValues(v3LockIds);
-    locks = await db.lock.findMany({
-      where,
-      include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
-      orderBy: { createdAt: "desc" },
-      take: Math.min(Math.max(limit, 1), 100)
-    }) as LockWithRelations[];
-  }
+  }) as LockWithRelations[]);
 
   return {
     locks: locks.map((lock) => serializeLock(lock, chainsById.get(lock.chainId)?.explorerUrl))
@@ -322,9 +329,8 @@ export async function listLocks(filters: number | LockListFilters = 50) {
 }
 
 export async function getWalletLocks(chainId: number, walletAddress: string) {
-  await refreshLiveV3LockerData();
   const chain = await db.chain.findUnique({ where: { id: chainId } });
-  let locks = await db.lock.findMany({
+  const locks = await filterDisplayLocks(await db.lock.findMany({
     where: {
       chainId,
       OR: [
@@ -334,22 +340,7 @@ export async function getWalletLocks(chainId: number, walletAddress: string) {
     },
     include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
     orderBy: { createdAt: "desc" }
-  }) as LockWithRelations[];
-  const v3LockIds = locks.filter((lock) => lock.assetType === AssetType.V3_POSITION).map((lock) => lock.id);
-  if (v3LockIds.length) {
-    await refreshV3PositionValues(v3LockIds);
-    locks = await db.lock.findMany({
-      where: {
-        chainId,
-        OR: [
-          { ownerAddress: walletAddress.toLowerCase() },
-          { beneficiaryAddress: walletAddress.toLowerCase() }
-        ]
-      },
-      include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
-      orderBy: { createdAt: "desc" }
-    }) as LockWithRelations[];
-  }
+  }) as LockWithRelations[]);
   return { chainId, walletAddress, locks: locks.map((lock) => serializeLock(lock, chain?.explorerUrl)) };
 }
 
