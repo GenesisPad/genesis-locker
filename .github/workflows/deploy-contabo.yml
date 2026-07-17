@@ -185,10 +185,9 @@ jobs:
             set -a; . "$API_ENV_FILE"; set +a
             npm run seed
             npm run index || true
-            # Re-derive every already-indexed asset's metadata/tvl/lockedPercentage
-            # against the current code, so a metadata/pricing bugfix self-heals
-            # existing DB rows on the next deploy instead of only affecting new locks.
-            npm run backfill || true
+            # Keep V3 display rows canonical without running the full RPC-heavy
+            # metadata/pricing backfill on every production deploy.
+            npm run normalize-v3 || true
 
             # ── Cron the indexer + price refresh (idempotent: replace only our
             #    tagged lines) ────────────────────────────────────────────────

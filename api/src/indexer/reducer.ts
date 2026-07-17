@@ -1,6 +1,6 @@
 import { AssetType, LockType, PrismaClient } from "@prisma/client";
 import { Contract, EventLog, Log, ZeroAddress } from "ethers";
-import { refreshAssetCalculations, refreshV3PositionLockValue, syncAssetMetadata } from "../services/metadata.js";
+import { normalizedV3LaunchToken, refreshAssetCalculations, refreshV3PositionLockValue, syncAssetMetadata } from "../services/metadata.js";
 import { JsonRpcProvider } from "ethers";
 
 type ParsedLog = ReturnType<import("ethers").Interface["parseLog"]>;
@@ -228,8 +228,10 @@ export async function applyGenesisV3PositionLockerEvent(
 
   if (parsed.name !== "PositionLockCreated" || tokenId === null || !positionManager) return;
 
-  const launchToken = String(parsed.args.launchToken).toLowerCase();
-  const pairedAsset = String(parsed.args.pairedAsset).toLowerCase();
+  const eventLaunchToken = String(parsed.args.launchToken).toLowerCase();
+  const eventPairedAsset = String(parsed.args.pairedAsset).toLowerCase();
+  const launchToken = normalizedV3LaunchToken(chainId, eventLaunchToken, eventPairedAsset) ?? eventLaunchToken;
+  const pairedAsset = launchToken === eventPairedAsset ? eventLaunchToken : eventPairedAsset;
   const pool = String(parsed.args.pool).toLowerCase();
   let originalDepositor = ZeroAddress.toLowerCase();
   let beneficiary = ZeroAddress.toLowerCase();

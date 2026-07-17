@@ -14,6 +14,7 @@
     "index": "tsx src/indexer/run.ts",
     "seed": "tsx src/indexer/seed.ts",
     "backfill": "tsx src/indexer/backfill.ts",
+    "normalize-v3": "tsx src/indexer/normalizeV3Positions.ts",
     "refresh-prices": "tsx src/indexer/refreshPrices.ts",
     "test": "vitest run",
     "prisma:generate": "prisma generate",

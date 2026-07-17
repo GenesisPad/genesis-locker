@@ -330,11 +330,49 @@ export async function refreshAssetCalculations(chainId: number, assetAddress: st
   }
 }
 
+export function normalizedV3LaunchToken(chainId: number, launchToken?: string | null, pairedAsset?: string | null, fallbackAsset?: string | null) {
+  const chain = chains.find((item) => item.id === chainId);
+  const wrappedNative = chain?.wrappedNativeAddress?.toLowerCase();
+  const launch = launchToken?.toLowerCase() || null;
+  const paired = pairedAsset?.toLowerCase() || null;
+  const fallback = fallbackAsset?.toLowerCase() || null;
+  if (wrappedNative && launch === wrappedNative && paired && paired !== wrappedNative) return paired;
+  if (wrappedNative && fallback === wrappedNative && paired && paired !== wrappedNative) return paired;
+  return launch || fallback;
+}
+
+export async function normalizeV3PositionPublicToken(lockDbId: string, provider?: JsonRpcProvider) {
+  const lock = await db.lock.findUnique({ where: { id: lockDbId } });
+  if (!lock || lock.assetType !== AssetType.V3_POSITION) return null;
+  const publicToken = normalizedV3LaunchToken(lock.chainId, lock.launchTokenAddress, lock.pairedAssetAddress, lock.assetAddress);
+  if (!publicToken) return null;
+
+  await db.token.upsert({
+    where: { chainId_address: { chainId: lock.chainId, address: publicToken } },
+    create: { chainId: lock.chainId, address: publicToken },
+    update: {}
+  });
+
+  if (lock.assetAddress !== publicToken || lock.launchTokenAddress !== publicToken) {
+    await db.lock.update({
+      where: { id: lock.id },
+      data: { assetAddress: publicToken, launchTokenAddress: publicToken }
+    });
+  }
+
+  if (provider) {
+    await syncAssetMetadata(lock.chainId, publicToken, AssetType.TOKEN, provider).catch(() => undefined);
+  }
+  return publicToken;
+}
+
 export async function refreshV3PositionLockValue(lockDbId: string) {
   const lock = await db.lock.findUnique({ where: { id: lockDbId } });
   if (!lock || lock.assetType !== AssetType.V3_POSITION) return;
   const chain = chains.find((item) => item.id === lock.chainId);
   const wrappedNative = chain?.wrappedNativeAddress?.toLowerCase();
+  const provider = chain?.rpcUrl ? new JsonRpcProvider(chain.rpcUrl) : undefined;
+  await normalizeV3PositionPublicToken(lock.id, provider);
   const candidates = Array.from(new Set([
     lock.launchTokenAddress?.toLowerCase(),
     lock.pairedAssetAddress?.toLowerCase(),
@@ -383,8 +421,8 @@ export async function refreshV3PositionLockValue(lockDbId: string) {
         ...(publicToken ? { assetAddress: publicToken, launchTokenAddress: publicToken } : {})
       }
     });
-    if (publicToken && chain) {
-      await syncAssetMetadata(lock.chainId, publicToken, AssetType.TOKEN, new JsonRpcProvider(chain.rpcUrl)).catch(() => undefined);
+    if (publicToken && provider) {
+      await syncAssetMetadata(lock.chainId, publicToken, AssetType.TOKEN, provider).catch(() => undefined);
     }
   } catch {
     // Price lookups are best-effort. The lock proof remains valid without a USD estimate.
