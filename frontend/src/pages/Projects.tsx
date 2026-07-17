@@ -196,7 +196,7 @@ export function Projects() {
       </motion.div>
 
       {/* Tab switcher */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+      <div className="project-tabs" style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -244,7 +244,7 @@ export function Projects() {
         <motion.div key="assets-content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
 
           {/* Stats strip */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+          <div className="project-stats-strip" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
             {statItems.map(({ icon: Icon, label, value }) => (
               <div key={label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
                 <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(213, 253, 81,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -270,7 +270,7 @@ export function Projects() {
                 <button key={c.id} className={`filter-btn${chainFilter === c.id ? ' active' : ''}`} onClick={() => setChainFilter(c.id)}>{c.name}</button>
               ))}
             </div>
-            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--dim)', alignSelf: 'center' }}>
+            <span className="project-filter-count" style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--dim)', alignSelf: 'center' }}>
               {visible.length} asset{visible.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -371,7 +371,7 @@ export function Projects() {
                 {f.label}
               </button>
             ))}
-            <div className="search-bar" style={{ marginLeft: 'auto', maxWidth: 280, padding: '4px 4px 4px 12px' }}>
+            <div className="search-bar project-lock-search" style={{ marginLeft: 'auto', maxWidth: 280, padding: '4px 4px 4px 12px' }}>
               <span className="search-icon"><Search size={13} /></span>
               <input value={lockQuery} onChange={e => setLockQuery(e.target.value)} placeholder="Filter by asset, address…" />
             </div>

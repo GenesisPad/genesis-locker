@@ -101,17 +101,18 @@ export function UnlockCalendar() {
 
       {/* Filters */}
       <motion.div
+        className="unlock-filters"
         style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.05 }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 4 }}>
+        <div className="unlock-filter-label" style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 4 }}>
           <Filter size={13} color="var(--dim)" />
           <span style={{ fontSize: 12, color: 'var(--dim)' }}>Filter:</span>
         </div>
 
         {/* Chain filter */}
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="unlock-filter-group" style={{ display: 'flex', gap: 4 }}>
           {(['all', ...CHAIN_CONFIGS.map(c => c.id)] as const).map(c => (
             <button key={c} onClick={() => setChain(c)} style={{
               fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
@@ -125,7 +126,7 @@ export function UnlockCalendar() {
         <div style={{ width: 1, height: 16, background: 'var(--border)' }} />
 
         {/* Type filter */}
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="unlock-filter-group" style={{ display: 'flex', gap: 4 }}>
           {(['all', 'LP', 'Token'] as const).map(t => (
             <button key={t} onClick={() => setType(t)} style={{
               fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
@@ -139,7 +140,7 @@ export function UnlockCalendar() {
         <div style={{ width: 1, height: 16, background: 'var(--border)' }} />
 
         {/* Min TVL */}
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="unlock-filter-group" style={{ display: 'flex', gap: 4 }}>
           {([0, 250000, 500000, 1000000] as const).map(v => (
             <button key={v} onClick={() => setMinTvl(v)} style={{
               fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
@@ -151,7 +152,7 @@ export function UnlockCalendar() {
         </div>
 
         {/* View toggle — pushed right */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 2, background: 'var(--card)', borderRadius: 6, padding: 3, border: '1px solid var(--border)' }}>
+        <div className="unlock-view-toggle" style={{ marginLeft: 'auto', display: 'flex', gap: 2, background: 'var(--card)', borderRadius: 6, padding: 3, border: '1px solid var(--border)' }}>
           <button onClick={() => setView('list')} style={{
             display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '4px 10px',
             borderRadius: 4, cursor: 'pointer',
