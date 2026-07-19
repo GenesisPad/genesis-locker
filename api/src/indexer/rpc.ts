@@ -1,4 +1,4 @@
-export async function isRpcReachable(rpcUrl: string, timeoutMs = 2500) {
+export async function isRpcReachable(rpcUrl: string, timeoutMs = 10_000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
