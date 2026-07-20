@@ -1,139 +1,221 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Code2, Copy } from 'lucide-react'
+import { Check, Code2, Copy, ExternalLink } from 'lucide-react'
+
+const BASE_URL = 'https://locker.genesispad.app'
 
 const ENDPOINTS = [
   {
-    method: 'GET' as const,
-    path: '/v1/lock/:lockId',
-    desc: 'Get lock details by ID',
+    path: '/v1/chains',
+    description: 'List supported networks and the locker contracts available on each network.',
+    request: 'curl https://locker.genesispad.app/v1/chains',
+    example: `[
+  {
+    "id": 4663,
+    "name": "Robinhood Chain",
+    "symbol": "ETH",
+    "feeLabel": "0.01 ETH",
+    "contracts": [{ "address": "0x0372...80ed" }]
+  }
+]`,
+  },
+  {
+    path: '/v1/stats',
+    description: 'Get current TVL, lock counts, permanent positions, and totals by network.',
+    request: 'curl https://locker.genesispad.app/v1/stats',
     example: `{
-  "id": 1,
-  "type": "lp",
-  "chain": "ethereum",
-  "asset": "0xBB2b8038a1640196FbE3e38816F3e67Cba72D940",
-  "amount": "1250.45",
-  "lockedUntil": "2026-12-31T00:00:00Z",
-  "lockPct": 78.45,
-  "status": "active",
-  "permanent": false
+  "totalLocks": 15,
+  "totalPermanentLocks": 10,
+  "totalTvl": "77435.62545737",
+  "totalLpTvl": "35883.51009287",
+  "totalTokenTvl": "41552.1153645",
+  "uniqueLockers": 9,
+  "byChain": []
 }`,
   },
   {
-    method: 'GET' as const,
-    path: '/v1/check/:chainId/:assetAddress',
-    desc: 'Check lock status for a token or LP pair',
+    path: '/v1/liquidity-locks?chainId=4663&limit=100',
+    description: 'Integration feed for DEX listings, analytics sites, bots, and explorers. Returns active liquidity-token locks and locked V3 positions.',
+    request: 'curl "https://locker.genesispad.app/v1/liquidity-locks?chainId=4663&limit=100"',
     example: `{
-  "address": "0xBB2b8038a1640196FbE3e38816F3e67Cba72D940",
-  "chain": "ethereum",
-  "isLocked": true,
-  "totalLocked": "$2,842,450",
-  "lockPct": 78.45,
-  "activeLocks": 2,
-  "permanentLocks": 0,
-  "badges": ["LP_LOCKED", "HIGH_LOCK_PCT"]
-}`,
-  },
-  {
-    method: 'GET' as const,
-    path: '/v1/locks?chain=ethereum&type=lp&page=1',
-    desc: 'List locks with optional filters',
-    example: `{
-  "total": 8241,
-  "page": 1,
-  "pageSize": 20,
-  "data": [...]
-}`,
-  },
-  {
-    method: 'GET' as const,
-    path: '/v1/search?q=:query',
-    desc: 'Search tokens, LP pairs, wallets, or lock IDs',
-    example: `{
-  "results": [
-    { "type": "lp", "name": "UNI/WETH", "chain": "ethereum", "tvl": "$2.8M" }
+  "updatedAt": "2026-07-20T15:00:00.000Z",
+  "locks": [
+    {
+      "chainId": 4663,
+      "poolAddress": "0x7654...175b",
+      "lockKind": "v3_position",
+      "isLocked": true,
+      "isPermanent": true,
+      "lockedAmount": "38808989855914277734134",
+      "lockedPercentage": null,
+      "unlockDate": null,
+      "valueUsd": "3407.0657033",
+      "createdTxUrl": "https://robinhoodchain.blockscout.com/tx/0x..."
+    }
   ]
 }`,
   },
   {
-    method: 'GET' as const,
-    path: '/v1/stats',
-    desc: 'Protocol-wide statistics and TVL',
+    path: '/v1/pools/:chainId/:poolAddress/locks',
+    description: 'Check one liquidity pool. This works for liquidity-token pools and locked V3 positions.',
+    request: 'curl https://locker.genesispad.app/v1/pools/4663/0x7654f462a5b3e2122c73ac02aac667dcf676175b/locks',
     example: `{
-  "totalTvl": "$128,746,532",
-  "totalLocks": 18742,
-  "lpLocks": 12450,
-  "tokenLocks": 6292,
-  "permanentLocks": 4291,
-  "feesCollected": "12.842 ETH"
+  "chainId": 4663,
+  "poolAddress": "0x7654...175b",
+  "isLiquidityLocked": true,
+  "hasPermanentLock": true,
+  "totalLockedAmount": "38808989855914277734134",
+  "lockedPercentage": null,
+  "totalValueUsd": "3407.0657033",
+  "longestUnlockDate": null,
+  "locks": []
+}`,
+  },
+  {
+    path: '/v1/locks?limit=20',
+    description: 'List recent locks. Filter by assetType, lockType, or unlockingSoon.',
+    request: 'curl "https://locker.genesispad.app/v1/locks?limit=20&assetType=token"',
+    example: `{
+  "locks": [
+    {
+      "lockId": "2",
+      "chainId": 4663,
+      "assetType": "token",
+      "lockType": "vesting",
+      "remainingLockedAmount": "350000000000000000000000000",
+      "unlockDate": "2026-09-06T23:00:00.000Z",
+      "tvlUsd": "26227.5888"
+    }
+  ]
+}`,
+  },
+  {
+    path: '/v1/positions?limit=20',
+    description: 'List permanently locked Genesis launch liquidity positions.',
+    request: 'curl "https://locker.genesispad.app/v1/positions?limit=20"',
+    example: `{
+  "locks": [
+    {
+      "assetType": "v3_position",
+      "positionTokenId": "197104",
+      "isPermanent": true,
+      "poolAddress": "0x7654...175b",
+      "tvlUsd": "3407.0657033"
+    }
+  ]
+}`,
+  },
+  {
+    path: '/v1/locks/:chainId/:lockId',
+    description: 'Get one lock and its asset summary. Include the contract address when lock numbers overlap.',
+    request: 'curl https://locker.genesispad.app/v1/locks/4663/2',
+    example: `{
+  "chainId": 4663,
+  "chain": "Robinhood Chain",
+  "isLocked": true,
+  "hasPermanentLock": false,
+  "totalLockedAmount": "350000000000000000000000000",
+  "lockedPercentage": "35",
+  "locks": []
+}`,
+  },
+  {
+    path: '/v1/check/:chainId/:assetAddress',
+    description: 'Check whether a token or liquidity-token address has active locks.',
+    request: 'curl https://locker.genesispad.app/v1/check/4663/0xb84622564b131ce0950ebb35713801619bfddc9c',
+    example: `{
+  "chainId": 4663,
+  "assetType": "token",
+  "isLocked": true,
+  "hasPermanentLock": false,
+  "lockedPercentage": "44.5",
+  "warnings": [],
+  "badges": ["Token Locked"]
+}`,
+  },
+  {
+    path: '/v1/wallets/:chainId/:walletAddress/locks',
+    description: 'List locks owned by, or payable to, a wallet on one network.',
+    request: 'curl https://locker.genesispad.app/v1/wallets/4663/0x8cfa84924011b19765136baea669ac81fe8bb561/locks',
+    example: `{
+  "chainId": 4663,
+  "walletAddress": "0x8cfa...b561",
+  "locks": []
+}`,
+  },
+  {
+    path: '/v1/search?q=:query',
+    description: 'Search by token address, wallet, pool, position number, or lock number.',
+    request: 'curl "https://locker.genesispad.app/v1/search?q=GEN"',
+    example: `{
+  "query": "GEN",
+  "results": [
+    { "type": "token", "chainId": 4663, "name": "GenesisPad", "symbol": "GEN" }
+  ]
 }`,
   },
 ]
 
 export function APIPage() {
+  const [copied, setCopied] = useState('')
+
+  const copy = (value: string, key: string) => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(key)
+      window.setTimeout(() => setCopied(current => current === key ? '' : current), 1500)
+    }).catch(() => {})
+  }
+
   return (
     <div className="api-page">
-      <motion.div
-        className="page-heading"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+      <motion.div className="page-heading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+        <div className="page-title-row">
           <Code2 size={22} color="var(--accent)" />
-          <h1 className="page-title" style={{ marginBottom: 0 }}>Public API</h1>
+          <h1 className="page-title">Genesis Locker API</h1>
         </div>
-        <p className="page-desc">
-          Genesis Locker provides a free, public REST API for integrating lock data into your dApp, dashboard, or tools.
-        </p>
+        <p className="page-desc">Public lock and TVL data for websites, bots, dashboards, and community tools.</p>
       </motion.div>
 
-      <div style={{
-        padding: '12px 16px', background: 'rgba(217, 173, 74,0.06)',
-        border: '1px solid rgba(217, 173, 74,0.15)', borderRadius: 'var(--r)',
-        marginBottom: 24, fontFamily: 'monospace', fontSize: 13,
-      }}>
-        Base URL: <span style={{ color: 'var(--accent)' }}>https://api.genesispad.app</span>
+      <section className="api-intro">
+        <div>
+          <span>Base URL</span>
+          <code>{BASE_URL}</code>
+        </div>
+        <button type="button" className="btn-secondary" onClick={() => copy(BASE_URL, 'base')}>
+          {copied === 'base' ? <Check size={13} /> : <Copy size={13} />}
+          {copied === 'base' ? 'Copied' : 'Copy base URL'}
+        </button>
+      </section>
+
+      <div className="api-facts">
+        <p><strong>No API key:</strong> all current endpoints are public and read-only.</p>
+        <p><strong>Numbers:</strong> token amounts and USD values are returned as strings to preserve precision.</p>
+        <p><strong>Freshness:</strong> prices and TVL refresh every five minutes. New transactions normally appear within a few minutes.</p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {ENDPOINTS.map((ep, i) => (
-          <motion.div
-            key={ep.path}
-            className="api-endpoint"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: i * 0.06 }}
-          >
-            <div className="api-endpoint-header">
-              <span className={`http-method ${ep.method.toLowerCase()}`}>{ep.method}</span>
-              <span className="api-path">{ep.path}</span>
-              <span className="api-desc">{ep.desc}</span>
-              <button
-                style={{ marginLeft: 'auto', color: 'var(--dim)', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}
-                onClick={() => navigator.clipboard.writeText(`https://api.genesispad.app${ep.path}`).catch(() => {})}
-              >
-                <Copy size={11} /> Copy
+      <div className="api-list">
+        {ENDPOINTS.map((endpoint, index) => (
+          <motion.section key={endpoint.path} className="api-endpoint" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.035 }}>
+            <header className="api-endpoint-header">
+              <span className="http-method get">GET</span>
+              <code className="api-path">{endpoint.path}</code>
+              <button type="button" className="api-copy" onClick={() => copy(endpoint.request, endpoint.path)}>
+                {copied === endpoint.path ? <Check size={12} /> : <Copy size={12} />}
+                {copied === endpoint.path ? 'Copied' : 'Copy request'}
               </button>
-            </div>
-            <div className="api-code-block">
-              {ep.example}
-            </div>
-          </motion.div>
+            </header>
+            <p className="api-desc">{endpoint.description}</p>
+            <div className="api-example-label">Request</div>
+            <pre className="api-code-block request"><code>{endpoint.request}</code></pre>
+            <div className="api-example-label">Example response</div>
+            <pre className="api-code-block"><code>{endpoint.example}</code></pre>
+          </motion.section>
         ))}
       </div>
 
-      <div style={{
-        marginTop: 24, padding: '16px 20px',
-        background: 'var(--bg-2)', border: '1px solid var(--border)',
-        borderRadius: 'var(--r)',
-      }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Authentication</div>
-        <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6 }}>
-          The Public API is free and requires no authentication for read operations.
-          Rate limits: 100 requests/minute per IP. For higher limits, contact us.
-        </p>
-      </div>
+      <a className="api-open-link" href={`${BASE_URL}/v1/stats`} target="_blank" rel="noreferrer">
+        Open the live stats response <ExternalLink size={13} />
+      </a>
     </div>
   )
 }

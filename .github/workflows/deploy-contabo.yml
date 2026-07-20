@@ -39,6 +39,7 @@ jobs:
           # on the next deploy, since the env file is rewritten from scratch
           # every run.
           ROBINHOOD_RPC_URL: ${{ secrets.ROBINHOOD_RPC_URL }}
+          WALLETCONNECT_PROJECT_ID: ${{ secrets.WALLETCONNECT_PROJECT_ID }}
           # Genesis launchpad V3 position lockers. Include historical lockers
           # so launch-created positions from previous corrected deployments
           # remain indexed and publicly verifiable.
@@ -61,7 +62,7 @@ jobs:
           port: ${{ secrets.CONTABO_PORT || '22' }}
           timeout: 30s
           command_timeout: 15m
-          envs: ROBINHOOD_RPC_URL,ROBINHOOD_V3_POSITION_LOCKER_ADDRESSES,ROBINHOOD_V3_POSITION_LOCKER_ADDRESS,ROBINHOOD_DEX_FACTORY_ADDRESS,ROBINHOOD_LAUNCHER_ADDRESS
+          envs: ROBINHOOD_RPC_URL,WALLETCONNECT_PROJECT_ID,ROBINHOOD_V3_POSITION_LOCKER_ADDRESSES,ROBINHOOD_V3_POSITION_LOCKER_ADDRESS,ROBINHOOD_DEX_FACTORY_ADDRESS,ROBINHOOD_LAUNCHER_ADDRESS
           script: |
             set -e
 
@@ -147,7 +148,10 @@ jobs:
             # ── Build the static frontend (same-origin API via nginx proxy) ─
             cd "$RELEASE_DIR/frontend"
             npm ci
-            VITE_API_BASE_URL="https://$DOMAIN" npm run build
+            VITE_API_BASE_URL="https://$DOMAIN" \
+            VITE_ROBINHOOD_RPC_URL="${ROBINHOOD_RPC_URL:-https://robinhood-mainnet.core.chainstack.com/2e476029d9bf0b19bfeb022628b339c2}" \
+            VITE_WALLETCONNECT_PROJECT_ID="${WALLETCONNECT_PROJECT_ID:-d0f8a0df8b52c9cd980a7295ec15dfc2}" \
+            npm run build
             test -f "$RELEASE_DIR/frontend/dist/index.html"
 
             # ── Activate this release ────────────────────────────────────────

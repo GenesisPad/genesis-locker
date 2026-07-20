@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { getAssetStatus, getChains, getGlobalStats, getWalletLocks, listLockedPositions, listLocks, search } from "../services/locks.js";
+import { getAssetStatus, getChains, getGlobalStats, getPoolLockStatus, getWalletLocks, listLiquidityLocks, listLockedPositions, listLocks, search } from "../services/locks.js";
 
 export const router = Router();
 
@@ -53,6 +53,15 @@ router.get("/locks", async (req, res) => {
 
 router.get("/positions", async (req, res) => {
   res.json(await listLockedPositions(Number(req.query.limit || 100)));
+});
+
+router.get("/liquidity-locks", async (req, res) => {
+  const chainId = req.query.chainId === undefined ? undefined : chainParam.parse(req.query.chainId);
+  res.json(await listLiquidityLocks({ chainId, limit: Number(req.query.limit || 100) }));
+});
+
+router.get("/pools/:chainId/:poolAddress/locks", async (req, res) => {
+  res.json(await getPoolLockStatus(chainParam.parse(req.params.chainId), addressParam.parse(req.params.poolAddress)));
 });
 
 router.get("/my-locks/:chainId/:walletAddress", async (req, res) => {

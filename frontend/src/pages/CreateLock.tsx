@@ -116,7 +116,7 @@ export function CreateLock() {
         .catch(() => {
           if (requestId !== detectRequest.current) return
           setDetecting(false)
-          setDetectError('RPC unavailable or asset metadata could not be read')
+          setDetectError('We could not read this asset. Check the network and contract address, then try again.')
         })
     }, 550)
 
@@ -365,7 +365,7 @@ export function CreateLock() {
               {txStep === 'approval' && 'Waiting for approval...'}
               {txStep === 'approvalConfirmed' && 'Approval confirmed. Creating lock...'}
               {txStep === 'locking' && 'Lock submitted. Waiting for confirmation...'}
-              {txStep === 'confirmed' && 'Lock confirmed. The proof page will appear after the indexer catches up.'}
+              {txStep === 'confirmed' && 'Lock confirmed. Your public lock page will appear within a few minutes.'}
             </div>
           )}
 

@@ -265,7 +265,7 @@ export function Home() {
             Genesis <span className="accent">Locker</span>
           </h1>
           <p className="hero-sub">
-            One proof surface for ERC20 tokens, liquidity tokens and Genesis launch positions. On-chain facts first, no fabricated values.
+            Lock tokens and liquidity, then share a clear public record that anyone can verify on-chain.
           </p>
           <div className="hero-actions">
             <button className="btn-primary" onClick={() => navigate('/create')}>
@@ -383,7 +383,7 @@ export function Home() {
 
         {locksLoaded && launchPositions.length === 0 && (
           <div className="empty-state" style={{ margin: 0 }}>
-            Launch-created positions will appear here after the locker indexer sees the on-chain lock event.
+            Genesis launch positions will appear here within a few minutes of confirmation.
           </div>
         )}
 

@@ -254,6 +254,89 @@ export async function listLockedPositions(limit = 100) {
   return listLocks({ limit, assetType: "v3_position" });
 }
 
+function liquidityPartnerRecord(lock: LockWithRelations, explorerUrl?: string | null) {
+  return {
+    chainId: lock.chainId,
+    poolAddress: lock.assetType === AssetType.V3_POSITION ? lock.poolAddress : lock.assetAddress,
+    assetAddress: lock.assetAddress,
+    lockId: lock.lockId.toString(),
+    lockContractAddress: lock.contractAddress,
+    lockKind: lock.assetType === AssetType.V3_POSITION ? "v3_position" : "lp_token",
+    isLocked: lock.isPermanent || remainingAmount(lock) > 0n,
+    isPermanent: lock.isPermanent,
+    lockedAmount: remainingAmount(lock).toString(),
+    lockedPercentage: lock.lockedPercentage?.toString() ?? null,
+    unlockDate: lock.isPermanent ? null : lock.endTime?.toISOString() ?? null,
+    valueUsd: lock.tvlUsd?.toString() ?? null,
+    owner: lock.ownerAddress,
+    beneficiary: lock.beneficiaryAddress,
+    positionManager: lock.positionManager,
+    positionTokenId: lock.positionTokenId,
+    createdTxHash: lock.createdTxHash,
+    createdTxUrl: lock.createdTxHash ? txUrl(explorerUrl, lock.createdTxHash) : null,
+    updatedAt: lock.updatedAt.toISOString()
+  };
+}
+
+export async function listLiquidityLocks(options: { chainId?: number; limit?: number } = {}) {
+  const limit = Math.min(Math.max(options.limit ?? 100, 1), 100);
+  const chainsById = new Map((await db.chain.findMany()).map((chain) => [chain.id, chain]));
+  const locks = await db.lock.findMany({
+    where: {
+      ...(options.chainId ? { chainId: options.chainId } : {}),
+      assetType: { in: [AssetType.LP, AssetType.V3_POSITION] }
+    },
+    include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
+    orderBy: { createdAt: "desc" },
+    take: limit
+  }) as LockWithRelations[];
+
+  return {
+    updatedAt: new Date().toISOString(),
+    locks: locks
+      .filter((lock) => lock.isPermanent || remainingAmount(lock) > 0n)
+      .map((lock) => liquidityPartnerRecord(lock, chainsById.get(lock.chainId)?.explorerUrl))
+  };
+}
+
+export async function getPoolLockStatus(chainId: number, poolAddress: string) {
+  const address = poolAddress.toLowerCase();
+  const [chain, locks] = await Promise.all([
+    db.chain.findUnique({ where: { id: chainId } }),
+    db.lock.findMany({
+      where: {
+        chainId,
+        OR: [
+          { assetType: AssetType.LP, assetAddress: address },
+          { assetType: AssetType.V3_POSITION, poolAddress: address }
+        ]
+      },
+      include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
+      orderBy: [{ isPermanent: "desc" }, { endTime: "desc" }]
+    })
+  ]);
+  const activeLocks = (locks as LockWithRelations[]).filter((lock) => lock.isPermanent || remainingAmount(lock) > 0n);
+  const timedUnlocks = activeLocks
+    .filter((lock) => !lock.isPermanent && lock.endTime)
+    .map((lock) => lock.endTime as Date)
+    .sort((a, b) => b.getTime() - a.getTime());
+
+  return {
+    chainId,
+    chain: chain?.name ?? chains.find((item) => item.id === chainId)?.name ?? null,
+    poolAddress: address,
+    isLiquidityLocked: activeLocks.length > 0,
+    hasPermanentLock: activeLocks.some((lock) => lock.isPermanent),
+    totalLockedAmount: activeLocks.reduce((sum, lock) => sum + remainingAmount(lock), 0n).toString(),
+    lockedPercentage: activeLocks.some((lock) => lock.assetType === AssetType.V3_POSITION)
+      ? null
+      : activeLocks.reduce((sum, lock) => sum + Number(lock.lockedPercentage || 0), 0).toString(),
+    totalValueUsd: activeLocks.reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
+    longestUnlockDate: timedUnlocks[0]?.toISOString() ?? null,
+    locks: activeLocks.map((lock) => liquidityPartnerRecord(lock, chain?.explorerUrl))
+  };
+}
+
 export async function getAssetStatus(chainId: number, assetAddress?: string, lockId?: bigint, contractAddress?: string) {
   const lockWhere = lockId
     ? {

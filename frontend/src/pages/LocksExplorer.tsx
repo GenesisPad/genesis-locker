@@ -49,7 +49,7 @@ function primaryMeta(lock: ApiLock) {
 export function LocksExplorer({
   initialFilter = 'all',
   title = 'Explore Locks',
-  description = 'Tokens, liquidity locks and launch-created locked positions in one proof surface.',
+  description = 'Browse token locks, liquidity locks, and permanent Genesis launch positions.',
 }: {
   initialFilter?: LockExplorerFilterKey
   title?: string

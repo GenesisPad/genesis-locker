@@ -176,6 +176,25 @@ describe("API routes", () => {
     expect(body.locks.some((lock) => lock.assetType === "v3_position" && lock.positionTokenId === "123")).toBe(true);
   });
 
+  it("serves a partner-friendly liquidity lock feed", async () => {
+    if (!dbAvailable) return;
+    const response = await fetch(`${baseUrl}/v1/liquidity-locks?chainId=99999`);
+    expect(response.status).toBe(200);
+    const body = await response.json() as { locks: Array<{ poolAddress: string; isLocked: boolean; isPermanent: boolean; valueUsd: string | null }> };
+    expect(body.locks.some((lock) => lock.poolAddress === "0x6000000000000000000000000000000000000006" && lock.isLocked && lock.isPermanent && lock.valueUsd === "1234.56")).toBe(true);
+  });
+
+  it("checks liquidity lock status by pool address", async () => {
+    if (!dbAvailable) return;
+    const response = await fetch(`${baseUrl}/v1/pools/99999/0x6000000000000000000000000000000000000006/locks`);
+    expect(response.status).toBe(200);
+    const body = await response.json() as { isLiquidityLocked: boolean; hasPermanentLock: boolean; totalValueUsd: string; locks: unknown[] };
+    expect(body.isLiquidityLocked).toBe(true);
+    expect(body.hasPermanentLock).toBe(true);
+    expect(Number(body.totalValueUsd)).toBeGreaterThanOrEqual(1234.56);
+    expect(body.locks.length).toBeGreaterThan(0);
+  });
+
   it("counts locked positions in liquidity TVL", async () => {
     if (!dbAvailable) return;
     const response = await fetch(`${baseUrl}/v1/stats/tvl`);

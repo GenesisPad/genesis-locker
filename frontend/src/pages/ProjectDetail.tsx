@@ -405,7 +405,7 @@ export function ProjectDetail() {
             <div style={{ background: 'rgba(225,183,92,0.07)', border: '1px solid rgba(225,183,92,0.2)', borderRadius: 12, padding: '14px 16px', display: 'flex', gap: 10 }}>
               <AlertTriangle size={16} color="var(--warning)" style={{ flexShrink: 0, marginTop: 1 }} />
               <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-                Token metadata for this asset hasn't been indexed yet. Always verify the contract independently before trusting locked amounts.
+                Token details are not available yet. Confirm the contract address independently before relying on the displayed amounts.
               </div>
             </div>
           )}

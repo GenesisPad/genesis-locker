@@ -444,7 +444,7 @@ export function Projects() {
             </div>
             {(loading || visibleLocks.length === 0) && (
               <div style={{ padding: '32px', textAlign: 'center', color: 'var(--dim)' }}>
-                {loading ? 'Loading locks…' : 'No indexed locks yet. Create a lock, then run the API indexer.'}
+                {loading ? 'Loading locks…' : 'No locks found yet. New locks normally appear within a few minutes.'}
               </div>
             )}
           </div>
