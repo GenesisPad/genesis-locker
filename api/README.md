@@ -28,7 +28,9 @@ Production base URL: `https://locker.genesispad.app/api/v1`
 
 ## Liquidity partners
 
-Use `GET /liquidity-locks?chainId=4663&limit=100` for a current feed of active liquidity locks. Use `GET /pools/:chainId/:poolAddress/locks` to check one pool. Both routes expose the locked amount, percentage when available, unlock date, permanent status, USD value, and transaction proof.
+Use `GET /liquidity-locks?chainId=4663&limit=100` for a current public feed of active liquidity locks. Use `GET /pools/:chainId/:poolAddress/locks` to check one pool. Both routes expose the locked amount, percentage when available, unlock date, permanent status, USD value, and transaction proof.
+
+DEX and market-data partners should use the authenticated `/partner` routes. Issue partner credentials from Genesis Sentinel's admin panel, then set Locker's `PARTNER_API_KEYS` secret to the same raw values in `partner-name:<key>` format.
 
 The earlier `/v1` URLs remain available for existing integrations.
 

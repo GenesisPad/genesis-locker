@@ -56,8 +56,11 @@ jobs:
           # default in config.ts.
           ROBINHOOD_LAUNCHER_ADDRESS: ${{ secrets.ROBINHOOD_LAUNCHER_ADDRESS }}
           # Comma-separated named partner credentials, for example
-          # dexscreener:<key>,dextools:<key>. The same secret may also be set
-          # on Genesis Sentinel when a partner uses both products.
+          # dexscreener:<key>,dextools:<key>. Issue the raw key values from
+          # Genesis Sentinel's admin panel, then store those same values here
+          # so one partner credential works across Sentinel and Locker.
+          # Sentinel does not read PARTNER_API_KEYS; its copy is stored in its
+          # database when the key is generated.
           PARTNER_API_KEYS: ${{ secrets.PARTNER_API_KEYS }}
         with:
           host: ${{ secrets.CONTABO_HOST }}

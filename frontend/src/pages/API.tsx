@@ -188,7 +188,8 @@ export function APIPage() {
       </section>
 
       <div className="api-facts">
-        <p><strong>No API key:</strong> all current endpoints are public and read-only.</p>
+        <p><strong>Public API:</strong> general lock and TVL endpoints are public and read-only. Partner routes require an API key.</p>
+        <p><strong>Partner keys:</strong> issue keys from Genesis Sentinel, then use the same raw value for Locker partner access.</p>
         <p><strong>Numbers:</strong> token amounts and USD values are returned as strings to preserve precision.</p>
         <p><strong>Freshness:</strong> prices and TVL refresh every five minutes. New transactions normally appear within a few minutes.</p>
       </div>

@@ -2,7 +2,7 @@
 
 Base URL: `https://locker.genesispad.app/api/v1`
 
-The general API is public and read-only. Dedicated partner routes require an API key. Token amounts and USD values are strings so integrations do not lose precision.
+The general API is public and read-only. Dedicated partner routes require an API key generated from Genesis Sentinel's admin panel and stored in Locker's `PARTNER_API_KEYS` deployment secret. Token amounts and USD values are strings so integrations do not lose precision.
 
 ## Liquidity-lock integrations
 
@@ -55,6 +55,6 @@ DEX listings and market-data partners should use the authenticated address endpo
 - `GET /partner/pools/:chainId/:poolAddress/locks`
 - `GET /partner/liquidity-lock-events?chainId=4663&limit=100&cursor=...`
 
-Send the credential as `X-API-Key: <key>` or `Authorization: Bearer <key>`. Partner responses are cached by the API for 15 seconds and include `ETag`, `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset`. A quota response uses HTTP `429` and includes `Retry-After`.
+Send the credential as `X-API-Key: <key>` or `Authorization: Bearer <key>`. Use the same raw key value for Genesis Sentinel and Genesis Locker when a partner integrates both products; Sentinel stores the key in its database, while Locker reads it from `PARTNER_API_KEYS`. Partner responses are cached by the API for 15 seconds and include `ETag`, `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset`. A quota response uses HTTP `429` and includes `Retry-After`.
 
 The change feed is ordered by blockchain block and log position. Follow `nextCursor` while `hasMore` is true, then retain the cursor for the next check. The maximum page size is 500. `syncedThroughBlock` reports the latest block safely indexed across the chain's configured locker contracts.
