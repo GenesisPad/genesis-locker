@@ -148,7 +148,7 @@ jobs:
             # ── Build the static frontend (same-origin API via nginx proxy) ─
             cd "$RELEASE_DIR/frontend"
             npm ci
-            VITE_API_BASE_URL="https://$DOMAIN" \
+            VITE_API_BASE_URL="https://$DOMAIN/api" \
             VITE_ROBINHOOD_RPC_URL="${ROBINHOOD_RPC_URL:-https://robinhood-mainnet.core.chainstack.com/2e476029d9bf0b19bfeb022628b339c2}" \
             VITE_WALLETCONNECT_PROJECT_ID="${WALLETCONNECT_PROJECT_ID:-d0f8a0df8b52c9cd980a7295ec15dfc2}" \
             npm run build
@@ -218,6 +218,22 @@ jobs:
               root $CURRENT_LINK/frontend/dist;
               index index.html;
 
+              # Canonical public API. The trailing slash on proxy_pass rewrites
+              # /api/v1/... to the API server's native /v1/... route.
+              location /api/v1/ {
+                proxy_pass http://127.0.0.1:$API_PORT/v1/;
+                proxy_http_version 1.1;
+                proxy_set_header Host \$host;
+                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto \$scheme;
+              }
+
+              location = /api/v1 {
+                return 308 /api/v1/;
+              }
+
+              # Backward-compatible alias for existing clients.
               location /v1/ {
                 proxy_pass http://127.0.0.1:$API_PORT;
                 proxy_http_version 1.1;
@@ -266,5 +282,6 @@ jobs:
             # ── Smoke test ────────────────────────────────────────────────────
             sleep 2
             curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" | grep -q "Genesis Locker"
+            curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/api/v1/chains" | grep -q "Robinhood Chain"
             curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/v1/chains" | grep -q "Robinhood Chain"
-            echo "Deployed $RELEASE_ID to https://$DOMAIN (frontend + API)"
+            echo "Deployed $RELEASE_ID to https://$DOMAIN (frontend + API at /api/v1)"

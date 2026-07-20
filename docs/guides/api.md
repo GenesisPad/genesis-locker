@@ -1,6 +1,6 @@
 # Genesis Locker API
 
-Base URL: `https://locker.genesispad.app`
+Base URL: `https://locker.genesispad.app/api/v1`
 
 The API is public, read-only, and does not require an API key. Token amounts and USD values are strings so integrations do not lose precision.
 
@@ -8,7 +8,7 @@ The API is public, read-only, and does not require an API key. Token amounts and
 
 ### List liquidity locks
 
-`GET /v1/liquidity-locks?chainId=4663&limit=100`
+`GET /liquidity-locks?chainId=4663&limit=100`
 
 This feed is intended for DEX listings, market-data services, explorers, and bots. It returns active liquidity-token locks and locked V3 positions. Records include:
 
@@ -23,24 +23,26 @@ This feed is intended for DEX listings, market-data services, explorers, and bot
 
 ### Check one pool
 
-`GET /v1/pools/:chainId/:poolAddress/locks`
+`GET /pools/:chainId/:poolAddress/locks`
 
 Use this endpoint when displaying one trading pair. It returns combined lock status, value, percentage, latest unlock date, and individual lock records for that pool.
 
 ## General endpoints
 
-- `GET /v1/chains`
-- `GET /v1/stats`
-- `GET /v1/stats/tvl`
-- `GET /v1/stats/fees`
-- `GET /v1/locks?limit=20&assetType=token`
-- `GET /v1/positions?limit=20`
-- `GET /v1/locks/:chainId/:lockId`
-- `GET /v1/locks/:chainId/:contractAddress/:lockId`
-- `GET /v1/tokens/:chainId/:tokenAddress/locks`
-- `GET /v1/lp/:chainId/:lpAddress/status`
-- `GET /v1/wallets/:chainId/:walletAddress/locks`
-- `GET /v1/check/:chainId/:assetAddress`
-- `GET /v1/search?q=GEN`
+- `GET /chains`
+- `GET /stats`
+- `GET /stats/tvl`
+- `GET /stats/fees`
+- `GET /locks?limit=20&assetType=token`
+- `GET /positions?limit=20`
+- `GET /locks/:chainId/:lockId`
+- `GET /locks/:chainId/:contractAddress/:lockId`
+- `GET /tokens/:chainId/:tokenAddress/locks`
+- `GET /lp/:chainId/:lpAddress/status`
+- `GET /wallets/:chainId/:walletAddress/locks`
+- `GET /check/:chainId/:assetAddress`
+- `GET /search?q=GEN`
+
+The earlier `/v1` URLs remain available for existing integrations.
 
 Prices and TVL refresh every five minutes. New transactions normally appear within a few minutes.

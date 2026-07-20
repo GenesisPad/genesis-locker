@@ -2,13 +2,13 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, Code2, Copy, ExternalLink } from 'lucide-react'
 
-const BASE_URL = 'https://locker.genesispad.app'
+const BASE_URL = 'https://locker.genesispad.app/api/v1'
 
 const ENDPOINTS = [
   {
-    path: '/v1/chains',
+    path: '/chains',
     description: 'List supported networks and the locker contracts available on each network.',
-    request: 'curl https://locker.genesispad.app/v1/chains',
+    request: 'curl https://locker.genesispad.app/api/v1/chains',
     example: `[
   {
     "id": 4663,
@@ -20,9 +20,9 @@ const ENDPOINTS = [
 ]`,
   },
   {
-    path: '/v1/stats',
+    path: '/stats',
     description: 'Get current TVL, lock counts, permanent positions, and totals by network.',
-    request: 'curl https://locker.genesispad.app/v1/stats',
+    request: 'curl https://locker.genesispad.app/api/v1/stats',
     example: `{
   "totalLocks": 15,
   "totalPermanentLocks": 10,
@@ -34,9 +34,9 @@ const ENDPOINTS = [
 }`,
   },
   {
-    path: '/v1/liquidity-locks?chainId=4663&limit=100',
+    path: '/liquidity-locks?chainId=4663&limit=100',
     description: 'Integration feed for DEX listings, analytics sites, bots, and explorers. Returns active liquidity-token locks and locked V3 positions.',
-    request: 'curl "https://locker.genesispad.app/v1/liquidity-locks?chainId=4663&limit=100"',
+    request: 'curl "https://locker.genesispad.app/api/v1/liquidity-locks?chainId=4663&limit=100"',
     example: `{
   "updatedAt": "2026-07-20T15:00:00.000Z",
   "locks": [
@@ -56,9 +56,9 @@ const ENDPOINTS = [
 }`,
   },
   {
-    path: '/v1/pools/:chainId/:poolAddress/locks',
+    path: '/pools/:chainId/:poolAddress/locks',
     description: 'Check one liquidity pool. This works for liquidity-token pools and locked V3 positions.',
-    request: 'curl https://locker.genesispad.app/v1/pools/4663/0x7654f462a5b3e2122c73ac02aac667dcf676175b/locks',
+    request: 'curl https://locker.genesispad.app/api/v1/pools/4663/0x7654f462a5b3e2122c73ac02aac667dcf676175b/locks',
     example: `{
   "chainId": 4663,
   "poolAddress": "0x7654...175b",
@@ -72,9 +72,9 @@ const ENDPOINTS = [
 }`,
   },
   {
-    path: '/v1/locks?limit=20',
+    path: '/locks?limit=20',
     description: 'List recent locks. Filter by assetType, lockType, or unlockingSoon.',
-    request: 'curl "https://locker.genesispad.app/v1/locks?limit=20&assetType=token"',
+    request: 'curl "https://locker.genesispad.app/api/v1/locks?limit=20&assetType=token"',
     example: `{
   "locks": [
     {
@@ -90,9 +90,9 @@ const ENDPOINTS = [
 }`,
   },
   {
-    path: '/v1/positions?limit=20',
+    path: '/positions?limit=20',
     description: 'List permanently locked Genesis launch liquidity positions.',
-    request: 'curl "https://locker.genesispad.app/v1/positions?limit=20"',
+    request: 'curl "https://locker.genesispad.app/api/v1/positions?limit=20"',
     example: `{
   "locks": [
     {
@@ -106,9 +106,9 @@ const ENDPOINTS = [
 }`,
   },
   {
-    path: '/v1/locks/:chainId/:lockId',
+    path: '/locks/:chainId/:lockId',
     description: 'Get one lock and its asset summary. Include the contract address when lock numbers overlap.',
-    request: 'curl https://locker.genesispad.app/v1/locks/4663/2',
+    request: 'curl https://locker.genesispad.app/api/v1/locks/4663/2',
     example: `{
   "chainId": 4663,
   "chain": "Robinhood Chain",
@@ -120,9 +120,9 @@ const ENDPOINTS = [
 }`,
   },
   {
-    path: '/v1/check/:chainId/:assetAddress',
+    path: '/check/:chainId/:assetAddress',
     description: 'Check whether a token or liquidity-token address has active locks.',
-    request: 'curl https://locker.genesispad.app/v1/check/4663/0xb84622564b131ce0950ebb35713801619bfddc9c',
+    request: 'curl https://locker.genesispad.app/api/v1/check/4663/0xb84622564b131ce0950ebb35713801619bfddc9c',
     example: `{
   "chainId": 4663,
   "assetType": "token",
@@ -134,9 +134,9 @@ const ENDPOINTS = [
 }`,
   },
   {
-    path: '/v1/wallets/:chainId/:walletAddress/locks',
+    path: '/wallets/:chainId/:walletAddress/locks',
     description: 'List locks owned by, or payable to, a wallet on one network.',
-    request: 'curl https://locker.genesispad.app/v1/wallets/4663/0x8cfa84924011b19765136baea669ac81fe8bb561/locks',
+    request: 'curl https://locker.genesispad.app/api/v1/wallets/4663/0x8cfa84924011b19765136baea669ac81fe8bb561/locks',
     example: `{
   "chainId": 4663,
   "walletAddress": "0x8cfa...b561",
@@ -144,9 +144,9 @@ const ENDPOINTS = [
 }`,
   },
   {
-    path: '/v1/search?q=:query',
+    path: '/search?q=:query',
     description: 'Search by token address, wallet, pool, position number, or lock number.',
-    request: 'curl "https://locker.genesispad.app/v1/search?q=GEN"',
+    request: 'curl "https://locker.genesispad.app/api/v1/search?q=GEN"',
     example: `{
   "query": "GEN",
   "results": [
@@ -213,7 +213,7 @@ export function APIPage() {
         ))}
       </div>
 
-      <a className="api-open-link" href={`${BASE_URL}/v1/stats`} target="_blank" rel="noreferrer">
+      <a className="api-open-link" href={`${BASE_URL}/stats`} target="_blank" rel="noreferrer">
         Open the live stats response <ExternalLink size={13} />
       </a>
     </div>

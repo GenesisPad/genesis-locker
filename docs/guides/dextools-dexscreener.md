@@ -3,9 +3,9 @@
 DEX data platforms can call the universal check endpoint for pair pages and token pages:
 
 ```text
-GET /v1/check/:chainId/:assetAddress
-GET /v1/lp/:chainId/:lpAddress/status
-GET /v1/tokens/:chainId/:tokenAddress/locks
+GET /api/v1/liquidity-locks?chainId=:chainId&limit=100
+GET /api/v1/pools/:chainId/:poolAddress/locks
+GET /api/v1/check/:chainId/:assetAddress
 ```
 
 Recommended display fields:

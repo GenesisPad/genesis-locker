@@ -144,11 +144,11 @@ const GUIDES: Guide[] = [
     sections: [
       {
         heading: 'Liquidity-lock feed',
-        body: 'GET /v1/liquidity-locks returns active liquidity-token locks and locked V3 positions. Each record includes the network, pool address, locked amount, percentage when available, unlock date, permanent status, USD value, and transaction proof.',
+        body: 'GET /api/v1/liquidity-locks returns active liquidity-token locks and locked V3 positions. Each record includes the network, pool address, locked amount, percentage when available, unlock date, permanent status, USD value, and transaction proof.',
       },
       {
         heading: 'Check one pool',
-        body: 'GET /v1/pools/:chainId/:poolAddress/locks returns the combined lock status for a specific pool. DEXTools, DexScreener, explorers, and bots can use this route when rendering a single trading pair.',
+        body: 'GET /api/v1/pools/:chainId/:poolAddress/locks returns the combined lock status for a specific pool. DEXTools, DexScreener, explorers, and bots can use this route when rendering a single trading pair.',
       },
       {
         heading: 'Freshness',
