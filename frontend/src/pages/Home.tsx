@@ -429,7 +429,7 @@ export function Home() {
                   <th>Amount</th>
                   <th>Locked Until</th>
                   <th>Lock %</th>
-                  <th>Status</th>
+                  <th>Value</th>
                   <th></th>
                 </tr>
               </thead>
@@ -462,7 +462,6 @@ export function Home() {
                       </td>
                       <td>
                         <div className="amt-main">{lockAmountLabel(lock)}</div>
-                        <div className="amt-usd">{lock.tvlUsd ? formatUsd(lock.tvlUsd) : 'Unavailable'}</div>
                       </td>
                       <td>
                         <div className="date-main">{lock.isPermanent ? 'Permanently' : formatDate(lock.unlockDate)}</div>
@@ -479,13 +478,7 @@ export function Home() {
                         </div>
                       </td>
                       <td>
-                        <span className={`status-chip ${status}`}>
-                          {status === 'permanent' ? (
-                            <><Infinity size={9} /> Permanent</>
-                          ) : status === 'active' ? (
-                            <><CheckCircle size={9} /> Active</>
-                          ) : 'Withdrawn'}
-                        </span>
+                        <div className="lock-value-cell">{lockValueLabel(lock)}</div>
                       </td>
                       <td>
                         <ChevronRight size={14} color="var(--dim)" />

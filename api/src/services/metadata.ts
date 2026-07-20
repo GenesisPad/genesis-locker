@@ -1,7 +1,7 @@
 import { AssetType } from "@prisma/client";
 import { Contract, JsonRpcProvider, ZeroAddress, formatUnits } from "ethers";
 import { db } from "../db.js";
-import { erc20Abi, pairAbi, factoryAbi, genesisLockerAbi } from "../contracts/genesisLockerAbi.js";
+import { erc20Abi, pairAbi, factoryAbi, genesisLockerAbi, v3PoolAbi, v3PositionManagerAbi } from "../contracts/genesisLockerAbi.js";
 import { chains } from "../config.js";
 import { getNativeUsdPrice } from "./nativePrice.js";
 
@@ -382,6 +382,75 @@ export async function refreshV3PositionLockValue(lockDbId: string) {
   if (!candidates.length || !poolAddress) return;
 
   try {
+    // Robinhood Chain pools are not consistently indexed by public market-data
+    // services. Derive the actual token amounts represented by the locked NFT
+    // from its liquidity range and the pool's live sqrt price, then value both
+    // sides using the wrapped-native USD anchor. This also handles one-sided,
+    // out-of-range positions correctly.
+    if (provider && wrappedNative && chain && lock.positionManager && lock.positionTokenId) {
+      const pool = new Contract(poolAddress, v3PoolAbi, provider);
+      const manager = new Contract(lock.positionManager, v3PositionManagerAbi, provider);
+      const [token0, token1, slot0, position] = await Promise.all([
+        pool.token0(), pool.token1(), pool.slot0(), manager.positions(lock.positionTokenId)
+      ]);
+      const token0Address = String(token0).toLowerCase();
+      const token1Address = String(token1).toLowerCase();
+      const nativeIsToken0 = token0Address === wrappedNative;
+      const nativeIsToken1 = token1Address === wrappedNative;
+
+      if (nativeIsToken0 || nativeIsToken1) {
+        const token0Contract = new Contract(token0Address, erc20Abi, provider);
+        const token1Contract = new Contract(token1Address, erc20Abi, provider);
+        const [token0Decimals, token1Decimals] = await Promise.all([
+          token0Contract.decimals().catch(() => 18), token1Contract.decimals().catch(() => 18)
+        ]);
+        const nativeUsdPrice = await getNativeUsdPrice(chain.symbol);
+        const sqrtPrice = Number(slot0.sqrtPriceX96) / 2 ** 96;
+        const sqrtLower = 1.0001 ** (Number(position.tickLower) / 2);
+        const sqrtUpper = 1.0001 ** (Number(position.tickUpper) / 2);
+        const liquidity = Number(position.liquidity);
+        let rawAmount0 = 0;
+        let rawAmount1 = 0;
+        if (sqrtPrice <= sqrtLower) {
+          rawAmount0 = liquidity * (sqrtUpper - sqrtLower) / (sqrtLower * sqrtUpper);
+        } else if (sqrtPrice < sqrtUpper) {
+          rawAmount0 = liquidity * (sqrtUpper - sqrtPrice) / (sqrtPrice * sqrtUpper);
+          rawAmount1 = liquidity * (sqrtPrice - sqrtLower);
+        } else {
+          rawAmount1 = liquidity * (sqrtUpper - sqrtLower);
+        }
+        const amount0 = rawAmount0 / 10 ** Number(token0Decimals);
+        const amount1 = rawAmount1 / 10 ** Number(token1Decimals);
+        const token1PerToken0 = sqrtPrice ** 2 * 10 ** (Number(token0Decimals) - Number(token1Decimals));
+        const token0Usd = nativeUsdPrice
+          ? nativeIsToken0 ? nativeUsdPrice : token1PerToken0 * nativeUsdPrice
+          : 0;
+        const token1Usd = nativeUsdPrice
+          ? nativeIsToken1 ? nativeUsdPrice : nativeUsdPrice / token1PerToken0
+          : 0;
+        const value = amount0 * token0Usd + amount1 * token1Usd;
+
+        if (Number.isFinite(value) && value > 0) {
+          const publicToken = nativeIsToken0 ? token1Address : token0Address;
+          const tokenPriceUsd = nativeIsToken0 ? token1Usd : token0Usd;
+
+          await db.token.upsert({
+            where: { chainId_address: { chainId: lock.chainId, address: publicToken } },
+            create: { chainId: lock.chainId, address: publicToken, priceUsd: tokenPriceUsd },
+            update: { priceUsd: tokenPriceUsd ?? undefined }
+          });
+          await db.lock.update({
+            where: { id: lock.id },
+            data: { tvlUsd: value, assetAddress: publicToken, launchTokenAddress: publicToken }
+          });
+          await syncAssetMetadata(lock.chainId, publicToken, AssetType.TOKEN, provider).catch(() => undefined);
+          return;
+        }
+      }
+    }
+
+    // Keep the public index as a secondary source for non-native pairs and
+    // chains where an on-chain native anchor is not configured.
     const payloads = await Promise.all(candidates.map(async (tokenAddress) => {
       const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`, {
         headers: {

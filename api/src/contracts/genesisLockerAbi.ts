@@ -22,7 +22,18 @@ export const erc20Abi = [
   "function name() view returns (string)",
   "function symbol() view returns (string)",
   "function decimals() view returns (uint8)",
-  "function totalSupply() view returns (uint256)"
+  "function totalSupply() view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)"
+] as const;
+
+export const v3PoolAbi = [
+  "function token0() view returns (address)",
+  "function token1() view returns (address)",
+  "function slot0() view returns (uint160 sqrtPriceX96,int24 tick,uint16 observationIndex,uint16 observationCardinality,uint16 observationCardinalityNext,uint8 feeProtocol,bool unlocked)"
+] as const;
+
+export const v3PositionManagerAbi = [
+  "function positions(uint256 tokenId) view returns (uint96 nonce,address operator,address token0,address token1,uint24 fee,int24 tickLower,int24 tickUpper,uint128 liquidity,uint256 feeGrowthInside0LastX128,uint256 feeGrowthInside1LastX128,uint128 tokensOwed0,uint128 tokensOwed1)"
 ] as const;
 
 export const pairAbi = [

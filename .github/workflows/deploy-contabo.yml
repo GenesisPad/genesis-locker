@@ -193,11 +193,11 @@ jobs:
             #    tagged lines) ────────────────────────────────────────────────
             INDEXER_TAG="genesis-locker-indexer"
             INDEXER_LINE="*/2 * * * * cd $CURRENT_LINK/api && /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run index' >> $SHARED_ROOT/indexer.log 2>&1 # $INDEXER_TAG"
-            # Prices only need to track the market, not every block - every 30
-            # minutes keeps TVL/USD values current without paying for an RPC
+            # Refresh market prices and position values every five minutes so
+            # lock values and aggregate TVL stay close to the live pools.
             # call per asset every 2 minutes alongside the indexer.
             PRICE_TAG="genesis-locker-price-refresh"
-            PRICE_LINE="*/30 * * * * cd $CURRENT_LINK/api && /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run refresh-prices' >> $SHARED_ROOT/price-refresh.log 2>&1 # $PRICE_TAG"
+            PRICE_LINE="*/5 * * * * cd $CURRENT_LINK/api && /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run refresh-prices' >> $SHARED_ROOT/price-refresh.log 2>&1 # $PRICE_TAG"
             ( crontab -l 2>/dev/null | grep -v "$INDEXER_TAG" | grep -v "$PRICE_TAG" ; echo "$INDEXER_LINE" ; echo "$PRICE_LINE" ) | crontab -
 
             # ── nginx: extend our own site file only (SPA + API proxy) ──────

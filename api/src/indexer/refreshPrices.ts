@@ -1,7 +1,7 @@
 import { JsonRpcProvider } from "ethers";
 import { chains } from "../config.js";
 import { db } from "../db.js";
-import { refreshAssetPrice, refreshAssetCalculations } from "../services/metadata.js";
+import { refreshAssetPrice, refreshAssetCalculations, refreshV3PositionLockValue } from "../services/metadata.js";
 import { isRpcReachable } from "./rpc.js";
 
 /**
@@ -26,6 +26,14 @@ async function refreshPrices() {
       continue;
     }
     const provider = new JsonRpcProvider(chain.rpcUrl);
+    if (asset.assetType === "V3_POSITION") {
+      const positions = await db.lock.findMany({
+        where: { chainId: asset.chainId, assetAddress: asset.assetAddress, assetType: asset.assetType },
+        select: { id: true }
+      });
+      await Promise.all(positions.map((position) => refreshV3PositionLockValue(position.id)));
+      continue;
+    }
     await refreshAssetPrice(asset.chainId, asset.assetAddress, asset.assetType, provider);
     await refreshAssetCalculations(asset.chainId, asset.assetAddress);
   }
