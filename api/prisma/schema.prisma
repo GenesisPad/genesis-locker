@@ -133,6 +133,8 @@ model Lock {
 
   @@unique([chainId, contractAddress, lockId])
   @@index([chainId, assetAddress])
+  @@index([chainId, poolAddress])
+  @@index([chainId, assetType, createdAt])
   @@index([chainId, ownerAddress])
   @@index([chainId, positionManager, positionTokenId])
 }
@@ -152,6 +154,7 @@ model LockEvent {
 
   @@unique([chainId, txHash, logIndex])
   @@index([chainId, lockId])
+  @@index([chainId, blockNumber, logIndex])
 }
 
 model IndexCursor {

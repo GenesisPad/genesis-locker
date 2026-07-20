@@ -1,12 +1,19 @@
 # DEXTools and DexScreener Integration Guide
 
-DEX data platforms can call the universal check endpoint for pair pages and token pages:
+DEX data platforms receive a dedicated API key and query by the address already shown on their token or pair page:
 
 ```text
-GET /api/v1/liquidity-locks?chainId=:chainId&limit=100
-GET /api/v1/pools/:chainId/:poolAddress/locks
-GET /api/v1/check/:chainId/:assetAddress
+GET /api/v1/partner/tokens/:chainId/:tokenAddress/locks
+GET /api/v1/partner/pools/:chainId/:poolAddress/locks
 ```
+
+Send `X-API-Key: <key>` with each request. Partners that maintain a local index can additionally consume:
+
+```text
+GET /api/v1/partner/liquidity-lock-events?chainId=:chainId&limit=500&cursor=:nextCursor
+```
+
+Address lookups are the source of truth for display. The incremental feed only tells an integration which token or pool changed so it can refresh the relevant address.
 
 Recommended display fields:
 

@@ -1,11 +1,37 @@
 import { Router } from "express";
 import { z } from "zod";
-import { getAssetStatus, getChains, getGlobalStats, getPoolLockStatus, getWalletLocks, listLiquidityLocks, listLockedPositions, listLocks, search } from "../services/locks.js";
+import { partnerRateLimit, partnerResponseCache, requirePartnerApiKey } from "../middleware/partnerApi.js";
+import { getAssetStatus, getChains, getGlobalStats, getPoolLockStatus, getTokenLockStatus, getWalletLocks, listLiquidityLocks, listLockedPositions, listLocks, listPartnerLockEvents, search } from "../services/locks.js";
 
 export const router = Router();
 
 const addressParam = z.string().regex(/^0x[a-fA-F0-9]{40}$/);
 const chainParam = z.coerce.number().int();
+const partnerEventQuery = z.object({
+  chainId: z.coerce.number().int(),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(100)
+});
+const partnerRouter = Router();
+
+partnerRouter.use(requirePartnerApiKey, partnerRateLimit, partnerResponseCache);
+partnerRouter.get("/tokens/:chainId/:tokenAddress/locks", async (req, res) => {
+  res.json(await getTokenLockStatus(chainParam.parse(req.params.chainId), addressParam.parse(req.params.tokenAddress)));
+});
+partnerRouter.get("/pools/:chainId/:poolAddress/locks", async (req, res) => {
+  res.json(await getPoolLockStatus(chainParam.parse(req.params.chainId), addressParam.parse(req.params.poolAddress)));
+});
+partnerRouter.get("/liquidity-lock-events", async (req, res) => {
+  const query = partnerEventQuery.safeParse(req.query);
+  if (!query.success) return res.status(400).json({ error: "invalid_request", message: "Provide a valid chainId, cursor, and a limit between 1 and 500." });
+  try {
+    res.json(await listPartnerLockEvents(query.data));
+  } catch (error) {
+    if (error instanceof Error && error.message === "invalid_cursor") return res.status(400).json({ error: "invalid_cursor", message: "The event cursor is invalid or malformed." });
+    throw error;
+  }
+});
+router.use("/partner", partnerRouter);
 
 router.get("/chains", (_req, res) => {
   getChains().then((chains) => res.json(chains));

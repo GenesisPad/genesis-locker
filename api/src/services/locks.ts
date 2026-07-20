@@ -337,6 +337,76 @@ export async function getPoolLockStatus(chainId: number, poolAddress: string) {
   };
 }
 
+export async function getTokenLockStatus(chainId: number, tokenAddress: string) {
+  const address = tokenAddress.toLowerCase();
+  const [chain, locks] = await Promise.all([
+    db.chain.findUnique({ where: { id: chainId } }),
+    db.lock.findMany({
+      where: { chainId, assetType: AssetType.TOKEN, assetAddress: address },
+      include: { token: true, events: { orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }] } },
+      orderBy: [{ isPermanent: "desc" }, { endTime: "desc" }]
+    })
+  ]);
+  const activeLocks = (locks as LockWithRelations[]).filter((lock) => lock.isPermanent || remainingAmount(lock) > 0n);
+  const timedUnlocks = activeLocks.filter((lock) => !lock.isPermanent && lock.endTime).map((lock) => lock.endTime as Date).sort((a, b) => b.getTime() - a.getTime());
+  return {
+    chainId,
+    chain: chain?.name ?? chains.find((item) => item.id === chainId)?.name ?? null,
+    tokenAddress: address,
+    isTokenLocked: activeLocks.length > 0,
+    hasPermanentLock: activeLocks.some((lock) => lock.isPermanent),
+    totalLockedAmount: activeLocks.reduce((sum, lock) => sum + remainingAmount(lock), 0n).toString(),
+    lockedPercentage: activeLocks.reduce((sum, lock) => sum + Number(lock.lockedPercentage || 0), 0).toString(),
+    totalValueUsd: activeLocks.reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
+    longestUnlockDate: timedUnlocks[0]?.toISOString() ?? null,
+    locks: activeLocks.map((lock) => serializeLock(lock, chain?.explorerUrl))
+  };
+}
+
+function encodeEventCursor(blockNumber: bigint, logIndex: number) {
+  return Buffer.from(JSON.stringify({ blockNumber: blockNumber.toString(), logIndex }), "utf8").toString("base64url");
+}
+
+function decodeEventCursor(cursor?: string) {
+  if (!cursor) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as { blockNumber?: string; logIndex?: number };
+    if (!parsed.blockNumber || !/^\d+$/.test(parsed.blockNumber) || !Number.isInteger(parsed.logIndex) || parsed.logIndex! < 0) return null;
+    return { blockNumber: BigInt(parsed.blockNumber), logIndex: parsed.logIndex! };
+  } catch { return null; }
+}
+
+export async function listPartnerLockEvents(options: { chainId: number; cursor?: string; limit?: number }) {
+  const limit = Math.min(Math.max(options.limit ?? 100, 1), 500);
+  const cursor = decodeEventCursor(options.cursor);
+  if (options.cursor && !cursor) throw new Error("invalid_cursor");
+  const [rows, cursors] = await Promise.all([
+    db.lockEvent.findMany({
+      where: { chainId: options.chainId, ...(cursor ? { OR: [{ blockNumber: { gt: cursor.blockNumber } }, { blockNumber: cursor.blockNumber, logIndex: { gt: cursor.logIndex } }] } : {}) },
+      include: { lock: true }, orderBy: [{ blockNumber: "asc" }, { logIndex: "asc" }], take: limit + 1
+    }),
+    db.indexCursor.findMany({ where: { chainId: options.chainId }, select: { lastBlock: true, updatedAt: true } })
+  ]);
+  const hasMore = rows.length > limit;
+  const page = rows.slice(0, limit);
+  const last = page.at(-1);
+  const syncedThroughBlock = cursors.length > 0 ? cursors.reduce((minimum, item) => item.lastBlock < minimum ? item.lastBlock : minimum, cursors[0].lastBlock) : null;
+  return {
+    chainId: options.chainId,
+    events: page.map((event) => ({
+      eventName: event.eventName, transactionHash: event.txHash, blockNumber: event.blockNumber.toString(), logIndex: event.logIndex,
+      observedAt: event.createdAt.toISOString(),
+      tokenAddress: event.lock?.launchTokenAddress ?? (event.lock?.assetType === AssetType.TOKEN ? event.lock.assetAddress : null),
+      poolAddress: event.lock?.poolAddress ?? (event.lock?.assetType === AssetType.LP ? event.lock.assetAddress : null),
+      assetAddress: event.lock?.assetAddress ?? null, lockId: event.lock?.lockId.toString() ?? event.lockId?.toString() ?? null,
+      lockContractAddress: event.lock?.contractAddress ?? null
+    })),
+    nextCursor: last ? encodeEventCursor(last.blockNumber, last.logIndex) : options.cursor ?? null,
+    hasMore, syncedThroughBlock: syncedThroughBlock?.toString() ?? null,
+    indexedAt: cursors.length > 0 ? cursors.reduce((latest, item) => item.updatedAt > latest ? item.updatedAt : latest, cursors[0].updatedAt).toISOString() : null
+  };
+}
+
 export async function getAssetStatus(chainId: number, assetAddress?: string, lockId?: bigint, contractAddress?: string) {
   const lockWhere = lockId
     ? {

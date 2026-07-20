@@ -2,12 +2,16 @@ import { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { db } from "../db.js";
+import { resetPartnerApiStateForTests } from "../middleware/partnerApi.js";
 
 let server: ReturnType<ReturnType<typeof createApp>["listen"]>;
 let baseUrl = "";
 let dbAvailable = true;
 
 beforeAll(async () => {
+  process.env.PARTNER_API_KEYS = "dexscreener:test-partner-key";
+  process.env.PARTNER_RATE_LIMIT_MAX = "600";
+  resetPartnerApiStateForTests();
   try {
     await db.chain.upsert({
     where: { id: 99999 },
@@ -50,6 +54,15 @@ beforeAll(async () => {
       isPermanent: true
     },
     update: {}
+    });
+
+    const partnerLock = await db.lock.findUniqueOrThrow({
+      where: { chainId_contractAddress_lockId: { chainId: 99999, contractAddress: "0x2000000000000000000000000000000000000002", lockId: 9001n } }
+    });
+    await db.lockEvent.upsert({
+      where: { chainId_txHash_logIndex: { chainId: 99999, txHash: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", logIndex: 1 } },
+      create: { chainId: 99999, lockDbId: partnerLock.id, lockId: 9001n, eventName: "PositionLockCreated", txHash: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", blockNumber: 100n, logIndex: 1, payload: {} },
+      update: { lockDbId: partnerLock.id }
     });
 
     await db.chain.upsert({
@@ -126,12 +139,14 @@ beforeAll(async () => {
 afterAll(async () => {
   if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   if (dbAvailable) {
+    await db.lockEvent.deleteMany({ where: { chainId: 99999 } });
     await db.lock.deleteMany({ where: { chainId: 99999 } });
     await db.lock.deleteMany({ where: { chainId: 4663, contractAddress: "0x2200000000000000000000000000000000000002" } });
     await db.wallet.deleteMany({ where: { address: "0x1000000000000000000000000000000000000001" } });
     await db.chain.deleteMany({ where: { id: 99999 } });
   }
   await db.$disconnect();
+  delete process.env.PARTNER_API_KEYS;
 });
 
 describe("API routes", () => {
@@ -193,6 +208,60 @@ describe("API routes", () => {
     expect(body.hasPermanentLock).toBe(true);
     expect(Number(body.totalValueUsd)).toBeGreaterThanOrEqual(1234.56);
     expect(body.locks.length).toBeGreaterThan(0);
+  });
+
+  it("requires a partner API key for partner lookups", async () => {
+    if (!dbAvailable) return;
+    const response = await fetch(`${baseUrl}/v1/partner/pools/99999/0x6000000000000000000000000000000000000006/locks`);
+    expect(response.status).toBe(401);
+  });
+
+  it("serves cached partner pool lookups with quota headers", async () => {
+    if (!dbAvailable) return;
+    const url = `${baseUrl}/v1/partner/pools/99999/0x6000000000000000000000000000000000000006/locks`;
+    const first = await fetch(url, { headers: { "x-api-key": "test-partner-key" } });
+    expect(first.status).toBe(200);
+    expect(first.headers.get("ratelimit-limit")).toBe("600");
+    expect(first.headers.get("x-genesis-cache")).toBe("MISS");
+    const etag = first.headers.get("etag");
+    const second = await fetch(url, { headers: { "x-api-key": "test-partner-key", "if-none-match": etag! } });
+    expect(second.status).toBe(304);
+    expect(second.headers.get("x-genesis-cache")).toBe("HIT");
+  });
+
+  it("aggregates active token locks for partner token lookups", async () => {
+    if (!dbAvailable) return;
+    const response = await fetch(`${baseUrl}/v1/partner/tokens/4663/0x0bd7d308f8e1639fab988df18a8011f41eacad73/locks`, { headers: { "x-api-key": "test-partner-key" } });
+    expect(response.status).toBe(200);
+    const body = await response.json() as { isTokenLocked: boolean; totalLockedAmount: string; totalValueUsd: string; locks: unknown[] };
+    expect(body.isTokenLocked).toBe(true);
+    expect(body.totalLockedAmount).toBe("1000");
+    expect(body.totalValueUsd).toBe("500");
+    expect(body.locks).toHaveLength(1);
+  });
+
+  it("paginates partner lock changes with a durable cursor", async () => {
+    if (!dbAvailable) return;
+    const response = await fetch(`${baseUrl}/v1/partner/liquidity-lock-events?chainId=99999&limit=1`, { headers: { authorization: "Bearer test-partner-key" } });
+    expect(response.status).toBe(200);
+    const body = await response.json() as { events: Array<{ blockNumber: string; poolAddress: string }>; nextCursor: string; hasMore: boolean };
+    expect(body.events[0]).toMatchObject({ blockNumber: "100", poolAddress: "0x6000000000000000000000000000000000000006" });
+    expect(body.nextCursor).toBeTruthy();
+    expect(typeof body.hasMore).toBe("boolean");
+  });
+
+  it("returns a retry delay when a partner exceeds its quota", async () => {
+    if (!dbAvailable) return;
+    process.env.PARTNER_RATE_LIMIT_MAX = "1";
+    resetPartnerApiStateForTests();
+    const url = `${baseUrl}/v1/partner/pools/99999/0x6000000000000000000000000000000000000006/locks`;
+    const first = await fetch(url, { headers: { "x-api-key": "test-partner-key" } });
+    const limited = await fetch(url, { headers: { "x-api-key": "test-partner-key" } });
+    expect(first.status).toBe(200);
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
+    process.env.PARTNER_RATE_LIMIT_MAX = "600";
+    resetPartnerApiStateForTests();
   });
 
   it("counts locked positions in liquidity TVL", async () => {

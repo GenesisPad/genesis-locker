@@ -55,6 +55,10 @@ jobs:
           # token before it graduates to DEX liquidity. Has a verified
           # default in config.ts.
           ROBINHOOD_LAUNCHER_ADDRESS: ${{ secrets.ROBINHOOD_LAUNCHER_ADDRESS }}
+          # Comma-separated named partner credentials, for example
+          # dexscreener:<key>,dextools:<key>. The same secret may also be set
+          # on Genesis Sentinel when a partner uses both products.
+          PARTNER_API_KEYS: ${{ secrets.PARTNER_API_KEYS }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
@@ -62,7 +66,7 @@ jobs:
           port: ${{ secrets.CONTABO_PORT || '22' }}
           timeout: 30s
           command_timeout: 15m
-          envs: ROBINHOOD_RPC_URL,WALLETCONNECT_PROJECT_ID,ROBINHOOD_V3_POSITION_LOCKER_ADDRESSES,ROBINHOOD_V3_POSITION_LOCKER_ADDRESS,ROBINHOOD_DEX_FACTORY_ADDRESS,ROBINHOOD_LAUNCHER_ADDRESS
+          envs: ROBINHOOD_RPC_URL,WALLETCONNECT_PROJECT_ID,ROBINHOOD_V3_POSITION_LOCKER_ADDRESSES,ROBINHOOD_V3_POSITION_LOCKER_ADDRESS,ROBINHOOD_DEX_FACTORY_ADDRESS,ROBINHOOD_LAUNCHER_ADDRESS,PARTNER_API_KEYS
           script: |
             set -e
 
@@ -133,6 +137,10 @@ jobs:
             ROBINHOOD_LAUNCHER_ADDRESS=${ROBINHOOD_LAUNCHER_ADDRESS:-}
             INDEXER_BATCH_SIZE=2000
             INDEXER_CONFIRMATIONS=12
+            PARTNER_API_KEYS=${PARTNER_API_KEYS:-}
+            PARTNER_RATE_LIMIT_MAX=600
+            PARTNER_RATE_LIMIT_WINDOW_MS=60000
+            PARTNER_CACHE_TTL_SECONDS=15
             UPLOADS_DIR=$UPLOADS_DIR
             ENVEOF
             chmod 600 "$API_ENV_FILE"
@@ -196,11 +204,11 @@ jobs:
             # ── Cron the indexer + price refresh (idempotent: replace only our
             #    tagged lines) ────────────────────────────────────────────────
             INDEXER_TAG="genesis-locker-indexer"
-            INDEXER_LINE="*/2 * * * * cd $CURRENT_LINK/api && /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run index' >> $SHARED_ROOT/indexer.log 2>&1 # $INDEXER_TAG"
+            INDEXER_LINE="*/2 * * * * cd $CURRENT_LINK/api && /usr/bin/flock -n $SHARED_ROOT/indexer.lock /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run index' >> $SHARED_ROOT/indexer.log 2>&1 # $INDEXER_TAG"
             # Refresh market prices and position values every five minutes so
             # lock values and aggregate TVL stay close to the live pools.
             PRICE_TAG="genesis-locker-price-refresh"
-            PRICE_LINE="*/5 * * * * cd $CURRENT_LINK/api && /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run refresh-prices' >> $SHARED_ROOT/price-refresh.log 2>&1 # $PRICE_TAG"
+            PRICE_LINE="*/5 * * * * cd $CURRENT_LINK/api && /usr/bin/flock -n $SHARED_ROOT/price-refresh.lock /usr/bin/env bash -lc 'set -a; . $API_ENV_FILE; set +a; npm run refresh-prices' >> $SHARED_ROOT/price-refresh.log 2>&1 # $PRICE_TAG"
             CRON_FILE=$(mktemp)
             crontab -l 2>/dev/null | grep -v "$INDEXER_TAG" | grep -v "$PRICE_TAG" > "$CRON_FILE" || true
             printf '%s\n%s\n' "$INDEXER_LINE" "$PRICE_LINE" >> "$CRON_FILE"

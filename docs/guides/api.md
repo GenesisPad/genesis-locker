@@ -2,7 +2,7 @@
 
 Base URL: `https://locker.genesispad.app/api/v1`
 
-The API is public, read-only, and does not require an API key. Token amounts and USD values are strings so integrations do not lose precision.
+The general API is public and read-only. Dedicated partner routes require an API key. Token amounts and USD values are strings so integrations do not lose precision.
 
 ## Liquidity-lock integrations
 
@@ -46,3 +46,15 @@ Use this endpoint when displaying one trading pair. It returns combined lock sta
 The earlier `/v1` URLs remain available for existing integrations.
 
 Prices and TVL refresh every five minutes. New transactions normally appear within a few minutes.
+
+## Partner API
+
+DEX listings and market-data partners should use the authenticated address endpoints rather than repeatedly downloading the public list:
+
+- `GET /partner/tokens/:chainId/:tokenAddress/locks`
+- `GET /partner/pools/:chainId/:poolAddress/locks`
+- `GET /partner/liquidity-lock-events?chainId=4663&limit=100&cursor=...`
+
+Send the credential as `X-API-Key: <key>` or `Authorization: Bearer <key>`. Partner responses are cached by the API for 15 seconds and include `ETag`, `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset`. A quota response uses HTTP `429` and includes `Retry-After`.
+
+The change feed is ordered by blockchain block and log position. Follow `nextCursor` while `hasMore` is true, then retain the cursor for the next check. The maximum page size is 500. `syncedThroughBlock` reports the latest block safely indexed across the chain's configured locker contracts.
