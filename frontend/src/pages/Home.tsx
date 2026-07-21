@@ -20,7 +20,7 @@ type StatDef = { label: string; icon: typeof Layers; value: (s: GlobalStats) => 
 const STAT_DEFS: StatDef[] = [
   { label: 'Total TVL', icon: Layers, value: s => formatUsd(s.totalTvl) },
   { label: 'Locked Positions', icon: TrendingUp, value: s => (s.totalV3PositionLocks ?? 0).toLocaleString() },
-  { label: 'Collected Fees', icon: Coins, value: s => s.totalV3AccruedFeesUsd ? formatUsd(s.totalV3AccruedFeesUsd) : 'Unavailable' },
+  { label: 'Platform Fees', icon: Coins, value: s => s.totalFeesCollectedUsd ? formatUsd(s.totalFeesCollectedUsd) : 'Unavailable' },
   { label: 'Total Locks', icon: Lock, value: s => (s.totalLocks ?? 0).toLocaleString() },
   { label: 'Permanent', icon: Infinity, value: s => (s.totalPermanentLocks ?? 0).toLocaleString() },
   { label: 'Unique Lockers', icon: Users, value: s => (s.uniqueLockers ?? 0).toLocaleString() },

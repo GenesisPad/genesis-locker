@@ -141,8 +141,9 @@ export type GlobalStats = {
   totalV3PositionLocks?: number
   totalV3AccruedFeesUsd?: string | null
   totalFeesCollected: string
+  totalFeesCollectedUsd?: string | null
   uniqueLockers: number
-  byChain: Array<{ chainId: number; name: string; totalLocks: number; totalActiveLocks: number; totalPermanentLocks: number; totalTvl: string; totalFeesCollected: string }>
+  byChain: Array<{ chainId: number; name: string; totalLocks: number; totalActiveLocks: number; totalPermanentLocks: number; totalTvl: string; totalFeesCollected: string; totalFeesCollectedUsd?: string | null }>
 }
 
 export type GenesisProjectMetadata = {

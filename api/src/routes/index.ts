@@ -48,7 +48,7 @@ router.get("/stats/tvl", async (_req, res) => {
 
 router.get("/stats/fees", async (_req, res) => {
   const stats = await getGlobalStats();
-  res.json({ totalFeesCollected: stats.totalFeesCollected, byChain: stats.byChain });
+  res.json({ totalFeesCollected: stats.totalFeesCollected, totalFeesCollectedUsd: stats.totalFeesCollectedUsd, byChain: stats.byChain });
 });
 
 router.get("/locks/:chainId/:lockId", async (req, res) => {

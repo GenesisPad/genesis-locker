@@ -1,6 +1,25 @@
 import { AssetType, Lock, LockType } from "@prisma/client";
+import { Contract, JsonRpcProvider } from "ethers";
 import { db } from "../db.js";
 import { chains, lowLockPercentageThreshold, shortLockDays } from "../config.js";
+import { getNativeUsdPrice } from "./nativePrice.js";
+
+const feeTotalCache = new Map<number, { amount: bigint; timestamp: number }>();
+
+async function onchainLockerFeeTotal(chainId: number) {
+  const cached = feeTotalCache.get(chainId);
+  if (cached && Date.now() - cached.timestamp < 60_000) return cached.amount;
+  const chain = chains.find((item) => item.id === chainId);
+  if (!chain?.rpcUrl || !chain.lockerAddress || process.env.NODE_ENV === "test") return null;
+  try {
+    const locker = new Contract(chain.lockerAddress, ["function totalFeesCollected() view returns (uint256)"], new JsonRpcProvider(chain.rpcUrl));
+    const amount = BigInt(await locker.totalFeesCollected());
+    feeTotalCache.set(chainId, { amount, timestamp: Date.now() });
+    return amount;
+  } catch {
+    return cached?.amount ?? null;
+  }
+}
 
 export type LockListFilters = {
   limit?: number;
@@ -221,9 +240,12 @@ export async function getGlobalStats() {
   const locks = await filterDisplayLocks(rawLocks);
   const isLiquidityLock = (lock: Lock) => lock.assetType === AssetType.LP || lock.assetType === AssetType.V3_POSITION;
   const chainRows = await getChains();
-  const byChain = chainRows.map((chain) => {
+  const byChain = await Promise.all(chainRows.map(async (chain) => {
     const chainLocks = locks.filter((lock) => lock.chainId === chain.id);
-    const chainFees = feeStats.filter((fee) => fee.chainId === chain.id).reduce((sum, fee) => sum + BigInt(fee.amount), 0n);
+    const indexedFees = feeStats.filter((fee) => fee.chainId === chain.id).reduce((sum, fee) => sum + BigInt(fee.amount), 0n);
+    const contractFees = await onchainLockerFeeTotal(chain.id);
+    const chainFees = contractFees !== null && contractFees > indexedFees ? contractFees : indexedFees;
+    const nativeUsd = await getNativeUsdPrice(chain.symbol).catch(() => null);
     return {
       chainId: chain.id,
       name: chain.name,
@@ -231,9 +253,15 @@ export async function getGlobalStats() {
       totalActiveLocks: chainLocks.filter((lock) => remainingAmount(lock) > 0n && !lock.isPermanent).length,
       totalPermanentLocks: chainLocks.filter((lock) => lock.isPermanent).length,
       totalTvl: chainLocks.reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
-      totalFeesCollected: chainFees.toString()
+      totalFeesCollected: chainFees.toString(),
+      totalFeesCollectedUsd: nativeUsd ? (Number(chainFees) / 1e18 * nativeUsd).toString() : null
     };
-  });
+  }));
+
+  const totalFeesCollected = byChain.reduce((sum, chain) => sum + BigInt(chain.totalFeesCollected), 0n);
+  const totalFeesCollectedUsd = byChain.some((chain) => chain.totalFeesCollectedUsd !== null)
+    ? byChain.reduce((sum, chain) => sum + Number(chain.totalFeesCollectedUsd || 0), 0).toString()
+    : null;
 
   return {
     totalLocks: locks.length,
@@ -244,7 +272,8 @@ export async function getGlobalStats() {
     totalTokenTvl: locks.filter((lock) => lock.assetType === AssetType.TOKEN).reduce((sum, lock) => sum + Number(lock.tvlUsd || 0), 0).toString(),
     totalV3PositionLocks: locks.filter((lock) => lock.assetType === AssetType.V3_POSITION).length,
     totalV3AccruedFeesUsd: null,
-    totalFeesCollected: feeStats.reduce((sum, fee) => sum + BigInt(fee.amount), 0n).toString(),
+    totalFeesCollected: totalFeesCollected.toString(),
+    totalFeesCollectedUsd,
     uniqueLockers,
     byChain
   };
