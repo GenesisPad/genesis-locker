@@ -87,12 +87,21 @@ jobs:
             DB_USER=genesis_locker
 
             mkdir -p "$RELEASE_ROOT" "$SHARED_ROOT"
-            rm -rf "$RELEASE_DIR"
-            git clone --depth 1 --branch main "$REPO_URL" "$RELEASE_DIR"
 
-            # ── Provision Postgres (idempotent, scoped to our own role/db) ──
-            # A previous memory-heavy build may have made PostgreSQL restart.
-            # Never attempt provisioning until the local server is accepting connections.
+            # Keep production services alive while the wallet frontend bundles.
+            # This host has previously OOM-killed PostgreSQL during Vite/Next builds.
+            if [ -z "$(swapon --show=NAME --noheadings)" ]; then
+              SWAP_FILE=/var/swap/genesis-build.swap
+              mkdir -p /var/swap
+              if [ ! -f "$SWAP_FILE" ]; then
+                fallocate -l 2G "$SWAP_FILE" || dd if=/dev/zero of="$SWAP_FILE" bs=1M count=2048
+                chmod 600 "$SWAP_FILE"
+                mkswap "$SWAP_FILE"
+              fi
+              swapon "$SWAP_FILE"
+            fi
+
+            # Recover the database before doing any network or build work.
             systemctl start postgresql || true
             for i in $(seq 1 30); do
               pg_isready -q && break
@@ -100,6 +109,10 @@ jobs:
             done
             pg_isready -q
 
+            rm -rf "$RELEASE_DIR"
+            git clone --depth 1 --branch main "$REPO_URL" "$RELEASE_DIR"
+
+            # ── Provision Postgres (idempotent, scoped to our own role/db) ──
             # Reuse the existing password across redeploys by sourcing the real
             # env file (never regex it - a stray colon/slash easily corrupts a
             # connection string) and pulling the password out of the DATABASE_URL
