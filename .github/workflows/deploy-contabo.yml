@@ -102,7 +102,12 @@ jobs:
             fi
 
             # Recover the database before doing any network or build work.
-            systemctl start postgresql || true
+            if ! timeout 30s systemctl start postgresql; then
+              while read -r PG_VERSION PG_CLUSTER _; do
+                pg_ctlcluster "$PG_VERSION" "$PG_CLUSTER" stop --force || true
+                pg_ctlcluster "$PG_VERSION" "$PG_CLUSTER" start
+              done < <(pg_lsclusters --no-header)
+            fi
             for i in $(seq 1 30); do
               pg_isready -q && break
               sleep 2
