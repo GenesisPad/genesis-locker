@@ -91,6 +91,15 @@ jobs:
             git clone --depth 1 --branch main "$REPO_URL" "$RELEASE_DIR"
 
             # ── Provision Postgres (idempotent, scoped to our own role/db) ──
+            # A previous memory-heavy build may have made PostgreSQL restart.
+            # Never attempt provisioning until the local server is accepting connections.
+            systemctl start postgresql || true
+            for i in $(seq 1 30); do
+              pg_isready -q && break
+              sleep 2
+            done
+            pg_isready -q
+
             # Reuse the existing password across redeploys by sourcing the real
             # env file (never regex it - a stray colon/slash easily corrupts a
             # connection string) and pulling the password out of the DATABASE_URL
