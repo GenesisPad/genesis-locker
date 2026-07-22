@@ -21,10 +21,6 @@ const GUIDES: Guide[] = [
         body: 'Every lock page shows the asset, owner, beneficiary, amount, unlock date, transaction history, and estimated USD value when pricing is available. Permanent liquidity positions created through GenesisPad are included too.',
       },
       {
-        heading: 'What a lock does not prove',
-        body: 'A lock proves that the displayed assets cannot be withdrawn before the stated date, subject to the contract rules. It is not an endorsement of the token, its team, or its future value.',
-      },
-      {
         heading: 'Supported networks',
         body: 'The app supports Robinhood Chain, Ethereum, Base, and BNB Chain. Available contracts and fees are shown after you select a network.',
       },
